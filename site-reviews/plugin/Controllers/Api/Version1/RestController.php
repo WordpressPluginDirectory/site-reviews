@@ -2,13 +2,17 @@
 
 namespace GeminiLabs\SiteReviews\Controllers\Api\Version1;
 
-class RestController
+use GeminiLabs\SiteReviews\Contracts\ControllerContract;
+use GeminiLabs\SiteReviews\HookProxy;
+
+class RestController implements ControllerContract
 {
+    use HookProxy;
+
     /**
-     * @return void
      * @action rest_api_init
      */
-    public function registerRoutes()
+    public function registerRoutes(): void
     {
         (new RestSummaryController())->register_routes();
         (new RestTypeController())->register_routes();

@@ -6,8 +6,9 @@ use Automattic\WooCommerce\StoreApi\SchemaController;
 use Automattic\WooCommerce\StoreApi\Schemas\ExtendSchema;
 use Automattic\WooCommerce\StoreApi\Schemas\V1\ProductSchema;
 use Automattic\WooCommerce\StoreApi\StoreApi;
+use GeminiLabs\SiteReviews\Contracts\ControllerContract;
 use GeminiLabs\SiteReviews\Helpers\Arr;
-use GeminiLabs\SiteReviews\Helpers\Str;
+use GeminiLabs\SiteReviews\HookProxy;
 use GeminiLabs\SiteReviews\Integrations\WooCommerce\Controllers\AdminApi\ProductReviews;
 use GeminiLabs\SiteReviews\Integrations\WooCommerce\Controllers\BlocksApi\ProductReviewSchema;
 use GeminiLabs\SiteReviews\Integrations\WooCommerce\Controllers\BlocksApi\ProductReviewsRoute;
@@ -15,10 +16,13 @@ use GeminiLabs\SiteReviews\Integrations\WooCommerce\Controllers\BlocksApi\Produc
 use GeminiLabs\SiteReviews\Integrations\WooCommerce\Controllers\RestApi\ProductReviewsController;
 use GeminiLabs\SiteReviews\Integrations\WooCommerce\Controllers\RestApi\ReportReviewsTotalsController;
 
-class RestApiController
+class RestApiController implements ControllerContract
 {
+    use HookProxy;
+
     /**
      * @param array $endpoints
+     *
      * @filter rest_endpoints
      */
     public function filterRestEndpoints($endpoints)
@@ -42,6 +46,7 @@ class RestApiController
 
     /**
      * @param array $namespaces
+     *
      * @filter woocommerce_rest_api_get_rest_namespaces
      */
     public function filterRestNamespaces($namespaces)
@@ -52,11 +57,13 @@ class RestApiController
     }
 
     /**
-     * @param bool $hasPermission
+     * @param bool   $hasPermission
      * @param string $context
-     * @param int $objectId
+     * @param int    $objectId
      * @param string $permissionType
+     *
      * @return bool
+     *
      * @filter woocommerce_rest_check_permissions
      */
     public function filterRestPermissions($hasPermission, $context, $objectId, $permissionType)
@@ -77,39 +84,46 @@ class RestApiController
     }
 
     /**
-     * @param array $join
-     * @param string $handle
      * @param \GeminiLabs\SiteReviews\Database\Query $query
-     * @return array
+     *
      * @filter site-reviews/query/sql/join
      */
-    public function filterSqlJoin($join, $handle, $query)
+    public function filterSqlJoin(array $join, string $handle, $query): array
     {
+        if ('woocommerce' !== ($query->args['integration'] ?? '')) {
+            return $join;
+        }
         $orderby = Arr::get($query->args, 'orderby');
-        if (Str::endsWith($orderby, 'rating')) {
-            $join['woo_orderby_rating'] = "INNER JOIN {$query->db->posts} AS p ON r.review_id = p.ID";
+        if (str_ends_with($orderby, 'rating')) {
+            $join['woo_orderby_rating'] = "INNER JOIN {$query->db->posts} AS p ON (p.ID = r.review_id)";
         }
         return $join;
     }
 
     /**
-     * @param array $orderBy
-     * @param string $handle
      * @param \GeminiLabs\SiteReviews\Database\Query $query
-     * @return array
+     *
      * @filter site-reviews/query/sql/order-by
      */
-    public function filterSqlOrderBy($orderBy, $handle, $query)
+    public function filterSqlOrderBy(array $orderBy, string $handle, $query): array
     {
+        if ('woocommerce' !== ($query->args['integration'] ?? '')) {
+            return $orderBy;
+        }
         $order = Arr::get($query->args, 'order');
         $orderby = Arr::get($query->args, 'orderby');
-        if (Str::endsWith($orderby, 'rating')) {
+        if (str_ends_with($orderby, 'rating')) {
             return [
                 "r.rating {$order}",
-                "p.post_date_gmt {$order}",
+                "p.post_date {$order}",
             ];
         }
-        if (Str::endsWith($orderby, 'date_gmt')) {
+        if (str_ends_with($orderby, 'date')) {
+            return [
+                "p.post_date {$order}", // ignore pinned reviews
+            ];
+        }
+        if (str_ends_with($orderby, 'date_gmt')) {
             return [
                 "p.post_date_gmt {$order}", // ignore pinned reviews
             ];
@@ -119,6 +133,7 @@ class RestApiController
 
     /**
      * @param array $endpoint
+     *
      * @return void
      */
     protected function modifyAnalyticsBatchEndpoint(&$endpoint)
@@ -137,6 +152,7 @@ class RestApiController
 
     /**
      * @param array $endpoint
+     *
      * @return void
      */
     protected function modifyAnalyticsReviewEndpoint(&$endpoint)
@@ -163,6 +179,7 @@ class RestApiController
 
     /**
      * @param array $endpoint
+     *
      * @return void
      */
     protected function modifyAnalyticsReviewsEndpoint(&$endpoint)
@@ -185,6 +202,7 @@ class RestApiController
 
     /**
      * @param array $endpoint
+     *
      * @return void
      */
     protected function modifyStoreEndpoints(&$endpoint)
