@@ -2,10 +2,35 @@
 
 namespace GeminiLabs\SiteReviews\Modules\Validator;
 
+use GeminiLabs\SiteReviews\Defaults\CaptchaConfigDefaults;
 use GeminiLabs\SiteReviews\Modules\Captcha;
 
-class Recaptcha2Validator extends CaptchaValidator
+class RecaptchaV2InvisibleValidator extends CaptchaValidatorAbstract
 {
+    /**
+     * @see https://developers.google.com/recaptcha/docs/invisible
+     */
+    public function config(): array
+    {
+        $language = $this->getLocale();
+        $urlParameters = array_filter([
+            'hl' => $language,
+            'render' => 'explicit',
+        ]);
+        return glsr(CaptchaConfigDefaults::class)->merge([
+            'badge' => glsr_get_option('forms.captcha.position'),
+            'class' => 'glsr-g-recaptcha',
+            'language' => $language,
+            'sitekey' => $this->siteKey(),
+            'size' => 'invisible',
+            'theme' => glsr_get_option('forms.captcha.theme'),
+            'type' => 'recaptcha_v2_invisible',
+            'urls' => [
+                'nomodule' => add_query_arg($urlParameters, 'https://www.google.com/recaptcha/api.js'),
+            ],
+        ]);
+    }
+
     public function isEnabled(): bool
     {
         return glsr(Captcha::class)->isEnabled('recaptcha_v2_invisible');
@@ -20,8 +45,8 @@ class Recaptcha2Validator extends CaptchaValidator
         return [
             'remoteip' => $this->request->ip_address,
             'response' => $token,
-            'secret' => glsr_get_option('forms.recaptcha.secret'),
-            'sitekey' => glsr_get_option('forms.recaptcha.key'),
+            'secret' => $this->siteSecret(),
+            'sitekey' => $this->siteKey(),
         ];
     }
 
@@ -41,7 +66,7 @@ class Recaptcha2Validator extends CaptchaValidator
 
     protected function errors(array $errors): array
     {
-        if (empty(glsr_get_option('forms.recaptcha.key'))) {
+        if (empty($this->siteKey())) {
             $errors[] = 'sitekey_missing';
         } elseif ('sitekey_invalid' === $this->token()) {
             $errors[] = 'sitekey_invalid';
@@ -49,7 +74,17 @@ class Recaptcha2Validator extends CaptchaValidator
         return parent::errors($errors);
     }
 
-    protected function siteverifyUrl(): string
+    protected function siteKey(): string
+    {
+        return glsr_get_option('forms.recaptcha.key');
+    }
+
+    protected function siteSecret(): string
+    {
+        return glsr_get_option('forms.recaptcha.secret');
+    }
+
+    protected function siteVerifyUrl(): string
     {
         return 'https://www.google.com/recaptcha/api/siteverify';
     }
