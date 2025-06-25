@@ -229,11 +229,17 @@ class ReviewManager
         $this->updateCustom($reviewId, $data);
         $this->updateResponse($reviewId, $data);
         $review = $this->get($reviewId);
-        if ($assignedPosts = Arr::uniqueInt(Arr::get($data, 'assigned_posts'))) {
-            glsr()->action('review/updated/post_ids', $review, $assignedPosts); // trigger a recount of assigned posts
+        if (isset($data['assigned_posts'])) {
+            $assignedPosts = glsr(Sanitizer::class)->sanitizePostIds($data['assigned_posts']);
+            glsr()->action('review/updated/post_ids', $review, $assignedPosts); // triggers a recount of assigned posts
         }
-        if ($assignedUsers = Arr::uniqueInt(Arr::get($data, 'assigned_users'))) {
-            glsr()->action('review/updated/user_ids', $review, $assignedUsers); // trigger a recount of assigned posts
+        if (isset($data['assigned_terms'])) {
+            $assignedTerms = glsr(Sanitizer::class)->sanitizeTermIds($data['assigned_terms']);
+            wp_set_object_terms($reviewId, $assignedTerms, glsr()->taxonomy); // triggers a recount of assigned_terms
+        }
+        if (isset($data['assigned_users'])) {
+            $assignedUsers = glsr(Sanitizer::class)->sanitizeUserIds($data['assigned_users']);
+            glsr()->action('review/updated/user_ids', $review, $assignedUsers); // triggers a recount of assigned posts
         }
         $review = $this->get($reviewId); // get a fresh copy of the review
         glsr()->action('review/updated', $review, $data, $oldPost);
@@ -345,7 +351,7 @@ class ReviewManager
             $requireApprovalForRating = glsr(OptionManager::class)->getInt('settings.general.require.approval_for', 5);
             $isApproved = !$requireApproval || $command->rating > $requireApprovalForRating;
         }
-        return !$isApproved || ('local' === $command->type && $command->request->cast('blacklisted', 'bool'))
+        return !$isApproved || $command->isBlacklisted()
             ? 'pending'
             : 'publish';
     }

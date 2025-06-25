@@ -2,8 +2,8 @@
 Contributors: geminilabs, pryley
 Donate link: https://ko-fi.com/pryley
 Tags: reviews, ratings, testimonials, product reviews, business reviews
-Tested up to: 6.7
-Stable tag: 7.2.3
+Tested up to: 6.8
+Stable tag: 7.2.10
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -195,6 +195,42 @@ You can report any security bugs found in the source code of this plugin through
 This update requires a minimum of PHP 7.4 and WordPress 6.1. There are a few potentially breaking changes, so please make sure to read the plugin's changelog and Upgrade Guide after updating.
 
 == Changelog ==
+
+= 7.2.10 (2025-06-25) =
+
+- Fixed button width
+
+= 7.2.9 (2025-06-15) =
+
+- Fixed blacklist
+- Fixed integration check
+- Fixed schema integrations with shortcode-based page builders
+
+= 7.2.7 (2025-06-05) =
+
+- WordCamp Europe 2025 edition with a new logo!
+
+= 7.2.6 (2025-02-16) =
+
+- Fixed a PHP Error triggered when the "%s Star | %s Stars" text is missing the placeholder tags in the Settings > Strings page.
+
+= 7.2.5 (2025-02-12) =
+
+- Fixed a XSS vulnerability in the review form.
+
+= 7.2.4 (2025-02-11) =
+
+- Fixed a PHP notice that could be triggered when other plugins use the gettext_default filter hook incorrectly.
+- Fixed a PHP notice that could be triggered when other plugins use the the_editor filter hook incorrectly.
+- Fixed mimetype checking for some server configurations.
+- Fixed the "Delete data on uninstall" setting.
+- Fixed the documentation for the `glsr_get_ratings` function.
+- Fixed the `glsr_update_review` function to allow updating assigned_terms.
+- Fixed the form signature validator when hooks are used to modify the request before a review is created.
+- Fixed the Friendlycaptcha validator.
+- Fixed the number of stars in the rating field when an invalid text translation is used.
+- Fixed the Settings defaults fallback.
+- Fixed the Site Reviews > Tools page from throwing an error when the WordPress Site Health > Info page crashes (this can happen on a misconfigured server or a server which runs out of available processes).
 
 = 7.2.3 (2024-10-31) =
 
