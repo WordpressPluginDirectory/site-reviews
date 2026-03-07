@@ -7,15 +7,31 @@ use GeminiLabs\SiteReviews\Database\Cache;
 use GeminiLabs\SiteReviews\Database\Query;
 use GeminiLabs\SiteReviews\Defaults\DashboardDataDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Helpers\Svg;
 use GeminiLabs\SiteReviews\Modules\Date;
+use GeminiLabs\SiteReviews\Modules\Html\Builder;
 
 class DashboardMetabox
 {
     public function register(): void
     {
         $id = glsr()->prefix.'dashboard_widget';
-        $title = __('Site Reviews Overview', 'site-reviews');
+        $icon = Svg::get('assets/images/icon.svg', [
+            'height' => 24,
+            'style' => 'display:flex; flex-shrink:0; margin: -4px 0;',
+        ]);
+        $title = glsr(Builder::class)->span([
+            'style' => 'display: flex; align-items: center; gap: 1ex;',
+            'text' => $icon.__('Site Reviews Overview', 'site-reviews'),
+        ]);
         wp_add_dashboard_widget($id, $title, [$this, 'render']);
+        // Ensure the widget title in screen options is text only.
+        global $wp_meta_boxes;
+        if (isset($wp_meta_boxes['dashboard']['normal']['core'][$id])) {
+            $wp_meta_boxes['dashboard']['normal']['core'][$id]['args'] = [
+                '__widget_basename' => __('Site Reviews Overview', 'site-reviews'),
+            ];
+        }
     }
 
     public function render(): void

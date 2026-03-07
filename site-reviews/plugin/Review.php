@@ -3,10 +3,12 @@
 namespace GeminiLabs\SiteReviews;
 
 use GeminiLabs\SiteReviews\Database\OptionManager;
+use GeminiLabs\SiteReviews\Database\PostMeta;
 use GeminiLabs\SiteReviews\Database\Query;
 use GeminiLabs\SiteReviews\Database\ReviewManager;
 use GeminiLabs\SiteReviews\Defaults\CustomFieldsDefaults;
 use GeminiLabs\SiteReviews\Defaults\ReviewDefaults;
+use GeminiLabs\SiteReviews\Defaults\StatDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Helpers\Text;
@@ -15,40 +17,41 @@ use GeminiLabs\SiteReviews\Modules\Date;
 use GeminiLabs\SiteReviews\Modules\Encryption;
 use GeminiLabs\SiteReviews\Modules\Html\ReviewHtml;
 use GeminiLabs\SiteReviews\Modules\Multilingual;
+use GeminiLabs\SiteReviews\Modules\Sanitizer;
 
 /**
- * @property bool $approved  This property is mapped to $is_approved
- * @property array $assigned_posts
- * @property array $assigned_terms
- * @property array $assigned_users
- * @property string $author
- * @property int $author_id
- * @property string $avatar
- * @property string $content
+ * @property bool      $approved       This property is mapped to $is_approved
+ * @property array     $assigned_posts
+ * @property array     $assigned_terms
+ * @property array     $assigned_users
+ * @property string    $author
+ * @property int       $author_id
+ * @property string    $avatar
+ * @property string    $content
  * @property Arguments $custom
- * @property string $date
- * @property string $date_gmt
- * @property string $name  This property is mapped to $author
- * @property string $email
- * @property bool $has_revisions  This property is mapped to $is_modified
- * @property int $ID
- * @property string $ip_address
- * @property bool $is_approved
- * @property bool $is_modified
- * @property bool $is_pinned
- * @property bool $is_verified
- * @property bool $modified  This property is mapped to $is_modified
- * @property bool $pinned  This property is mapped to $is_pinned
- * @property int $rating
- * @property int $rating_id
- * @property string $response
- * @property int $score
- * @property string $status
- * @property bool $terms
- * @property string $title
- * @property string $type
- * @property string $url
- * @property int $user_id  This property is mapped to $author_id
+ * @property string    $date
+ * @property string    $date_gmt
+ * @property string    $name           This property is mapped to $author
+ * @property string    $email
+ * @property bool      $has_revisions  This property is mapped to $is_modified
+ * @property int       $ID
+ * @property string    $ip_address
+ * @property bool      $is_approved
+ * @property bool      $is_modified
+ * @property bool      $is_pinned
+ * @property bool      $is_verified
+ * @property bool      $modified       This property is mapped to $is_modified
+ * @property bool      $pinned         This property is mapped to $is_pinned
+ * @property int       $rating
+ * @property int       $rating_id
+ * @property string    $response
+ * @property int       $score
+ * @property string    $status
+ * @property bool      $terms
+ * @property string    $title
+ * @property string    $type
+ * @property string    $url
+ * @property int       $user_id        This property is mapped to $author_id
  */
 class Review extends Arguments
 {
@@ -60,23 +63,26 @@ class Review extends Arguments
 
     protected bool $has_checked_revisions = false;
 
-    protected int $id;
-
     /**
      * @param array|object $values
      */
-    public function __construct($values, bool $init = true)
+    public function __construct($values = [], bool $init = true)
     {
-        $values = glsr()->args($values);
-        $this->id = Cast::toInt($values->review_id);
-        $args = glsr(ReviewDefaults::class)->restrict($values->toArray());
-        $args['ID'] = $this->id;
+        $args = glsr(ReviewDefaults::class)->restrict( // maps ID to rating_id, then review_id to ID
+            glsr()->args($values)->toArray()
+        );
         parent::__construct($args);
-        if ($init) {
-            $this->set('avatar', glsr(Avatar::class)->url($this));
-            $this->set('custom', $this->custom());
-            $this->set('response', $this->meta()->_response);
+        if (!$init || empty($values)) {
+            return;
         }
+        if (empty($this->author)) {
+            $this->set('author', glsr(Sanitizer::class)->sanitizeUserName(
+                $this->user(), __('Anonymous', 'site-reviews')
+            ));
+        }
+        $this->set('avatar', glsr(Avatar::class)->url($this));
+        $this->set('custom', $this->custom());
+        $this->set('response', $this->meta()->_response);
     }
 
     /**
@@ -98,7 +104,7 @@ class Review extends Arguments
 
     public function approveUrl(): string
     {
-        $token = glsr(Encryption::class)->encryptRequest('approve', [$this->id]);
+        $token = glsr(Encryption::class)->encryptRequest('approve', [$this->ID]);
         return !empty($token)
             ? add_query_arg(glsr()->prefix, $token, admin_url())
             : '';
@@ -134,7 +140,7 @@ class Review extends Arguments
             'include' => $termIds,
             'taxonomy' => glsr()->taxonomy,
         ]);
-        if (!is_array($terms)) {
+        if (is_wp_error($terms)) {
             return [];
         }
         return $terms;
@@ -153,10 +159,11 @@ class Review extends Arguments
 
     public function author(): string
     {
-        $name = $this->get('author', __('Anonymous', 'site-reviews'));
-        $format = glsr_get_option('reviews.name.format', '', 'string');
-        $initial = glsr_get_option('reviews.name.initial', '', 'string');
-        return Text::name($name, $format, $initial);
+        return Text::name(
+            $this->author,
+            glsr_get_option('reviews.name.format', '', 'string'),
+            glsr_get_option('reviews.name.initial', '', 'string')
+        );
     }
 
     public function avatar(int $size = 0): string
@@ -183,25 +190,24 @@ class Review extends Arguments
 
     public function date(string $format = 'F j, Y'): string
     {
-        $value = $this->get('date');
         if (!empty(func_get_args())) {
-            return Cast::toString(mysql2date($format, $value));
+            return Cast::toString(mysql2date($format, $this->date));
         }
         $dateFormat = glsr_get_option('reviews.date.format', 'default');
         if ('relative' === $dateFormat) {
-            return glsr(Date::class)->relative($value, 'past');
+            return glsr(Date::class)->relative($this->date, 'past');
         }
         $format = 'custom' === $dateFormat
             ? glsr_get_option('reviews.date.custom', 'M j, Y')
             : glsr(OptionManager::class)->wp('date_format', 'F j, Y');
-        return Cast::toString(mysql2date($format, $value));
+        return Cast::toString(mysql2date($format, $this->date));
     }
 
     public function editUrl(): string
     {
         $obj = get_post_type_object(glsr()->post_type);
-        $link = admin_url(sprintf($obj->_edit_link.'&action=edit', $this->id));
-        $link = apply_filters('get_edit_post_link', $link, $this->id, 'display');
+        $link = admin_url(sprintf($obj->_edit_link.'&action=edit', $this->ID));
+        $link = apply_filters('get_edit_post_link', $link, $this->ID, 'display');
         return Cast::toString($link);
     }
 
@@ -221,13 +227,20 @@ class Review extends Arguments
 
     public function isValid(): bool
     {
-        return !empty($this->id) && !empty($this->get('rating_id'));
+        return !empty($this->ID) && !empty($this->rating_id);
+    }
+
+    public function location(): array
+    {
+        return glsr(StatDefaults::class)->restrict(
+            glsr(PostMeta::class)->get($this->ID, 'geolocation')
+        );
     }
 
     public function meta(): Arguments
     {
         if (!$this->_meta instanceof Arguments) {
-            $meta = Arr::consolidate(get_post_meta($this->id));
+            $meta = Arr::consolidate(get_post_meta($this->ID));
             $meta = array_map(fn ($item) => array_shift($item), array_filter($meta));
             $meta = array_filter($meta, '\GeminiLabs\SiteReviews\Helper::isNotEmpty');
             $meta = array_map('maybe_unserialize', $meta);
@@ -247,6 +260,7 @@ class Review extends Arguments
 
     /**
      * @param mixed $key
+     *
      * @return mixed
      */
     #[\ReturnTypeWillChange]
@@ -303,19 +317,19 @@ class Review extends Arguments
     public function post()
     {
         if (!$this->_post instanceof \WP_Post) {
-            $this->_post = get_post($this->id);
+            $this->_post = get_post($this->ID);
         }
         return $this->_post;
     }
 
     public function rating(): string
     {
-        return glsr_star_rating($this->get('rating'));
+        return glsr_star_rating($this->rating);
     }
 
     public function refresh(): Review
     {
-        $values = glsr(ReviewManager::class)->get($this->id, true)->toArray();
+        $values = glsr(ReviewManager::class)->get($this->ID, true)->toArray();
         $this->merge($values);
         $this->_meta = null;
         $this->_post = null;
@@ -335,13 +349,13 @@ class Review extends Arguments
     {
         $excludedKeys = Arr::consolidate($excludedKeys);
         $values = Cast::toArrayDeep($this->getArrayCopy());
-        $values['name'] = $this->get('author'); // fallback
+        $values['name'] = $this->author; // fallback
         return array_diff_key($values, array_flip($excludedKeys));
     }
 
     public function type(): string
     {
-        $type = $this->get('type');
+        $type = $this->type;
         $reviewTypes = glsr()->retrieveAs('array', 'review_types');
         return Arr::get($reviewTypes, $type, _x('Unknown', 'admin-text', 'site-reviews'));
     }
@@ -351,16 +365,16 @@ class Review extends Arguments
      */
     public function user()
     {
-        return get_user_by('id', $this->get('author_id'));
+        return get_user_by('id', $this->author_id);
     }
 
     public function verifyUrl(string $path = ''): string
     {
-        if ($this->get('is_verified') && !empty($this->meta()->_verified_on)) {
+        if ($this->is_verified && !empty($this->meta()->_verified_on)) {
             return '';
         }
         $path = trailingslashit($path);
-        $token = glsr(Encryption::class)->encryptRequest('verify', [$this->id, $path]);
+        $token = glsr(Encryption::class)->encryptRequest('verify', [$this->ID, $path]);
         return !empty($token)
             ? add_query_arg(glsr()->prefix, $token, get_home_url())
             : '';
@@ -369,10 +383,10 @@ class Review extends Arguments
     protected function hasRevisions(): bool
     {
         if (!$this->has_checked_revisions) {
-            $modified = glsr(Query::class)->hasRevisions($this->ID);
-            $this->set('is_modified', $modified);
+            $isModified = glsr(Query::class)->hasRevisions($this->ID);
             $this->has_checked_revisions = true;
+            $this->set('is_modified', $isModified);
         }
-        return $this->get('is_modified');
+        return $this->cast('is_modified', 'bool');
     }
 }

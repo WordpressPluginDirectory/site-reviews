@@ -19,7 +19,8 @@ class ReviewField extends Field
                 'class' => $this->classAttrField(),
                 'description' => $this->buildFieldDescription(),
                 'errors' => $this->buildFieldErrors(),
-                'field' => $this->buildFieldElement(),
+                'field' => $this->buildFieldElement().$this->after,
+                'field_label' => esc_attr($this->label),
                 'field_name' => $this->original_name,
                 'field_type' => $this->original_type,
                 'label' => $this->buildFieldLabel(),
@@ -95,7 +96,7 @@ class ReviewField extends Field
     protected function classAttrElement(): string
     {
         $classes = [
-            glsr(Style::class)->fieldClass($this),
+            glsr(Style::class)->fieldElementClass($this),
         ];
         if ('yes_no' === $this->original_type) {
             $classes[] = "glsr-input-{$this->type}";

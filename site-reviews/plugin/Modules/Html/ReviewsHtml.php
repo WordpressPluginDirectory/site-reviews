@@ -36,14 +36,22 @@ class ReviewsHtml extends \ArrayObject
             'context' => [
                 'assigned_to' => $this->args->assigned_posts,
                 'category' => $this->args->assigned_terms,
-                'class' => $this->getClasses(),
-                'id' => '', // @deprecated in v5.0
+                'class' => 'glsr-reviews',
+                'id' => '', // @deprecated_v5
                 'pagination' => Helper::ifTrue(!empty($this->args->pagination), $this->getPagination()),
                 'reviews' => $this->getReviews(),
             ],
             'fallback' => $this->fallback,
             'reviews' => $this->reviews,
         ]);
+    }
+
+    public function attributes(): array
+    {
+        if (empty($this->attributes)) {
+            $this->attributes = $this->reviews->attributes();
+        }
+        return $this->attributes;
     }
 
     public function getPagination(bool $wrap = true): string
@@ -89,28 +97,14 @@ class ReviewsHtml extends \ArrayObject
     public function offsetGet($key)
     {
         if ('attributes' === $key) {
-            if (empty($this->attributes)) {
-                $this->attributes = $this->reviews->attributes();
-            }
-            return glsr(Attributes::class)->div($this->attributes)->toString();
+            return glsr(Attributes::class)->div($this->attributes())->toString();
         }
         if (array_key_exists($key, $this->rendered)) {
             return $this->rendered[$key];
         }
-        if (in_array($key, ['navigation', 'pagination'])) { // @deprecated in v5.0 (navigation)
-            return $this->getPagination();
-        }
         return property_exists($this, $key)
             ? $this->$key
             : glsr()->filterString("reviews/html/{$key}", null, $this);
-    }
-
-    protected function getClasses(): string
-    {
-        $classes = ['glsr-reviews'];
-        $classes[] = $this->args['class'];
-        $classes = implode(' ', $classes);
-        return glsr(Sanitizer::class)->sanitizeAttrClass($classes);
     }
 
     protected function getReviewsFallback(): string

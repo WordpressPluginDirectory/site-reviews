@@ -13,17 +13,13 @@ class ColumnValueAssignedUsers implements ColumnValueContract
     {
         $links = [];
         foreach ($review->assigned_users as $userId) {
-            $user = get_userdata($userId);
+            $user = get_user_by('id', $userId);
             if (!$user) {
                 continue;
             }
-            $name = glsr(Sanitizer::class)->sanitizeUserName(
-                $user->display_name,
-                $user->user_nicename
-            );
             $links[] = glsr(Builder::class)->a([
-                'href' => esc_url(get_author_posts_url($userId)),
-                'text' => $name,
+                'href' => esc_url(get_author_posts_url($user->ID)),
+                'text' => glsr(Sanitizer::class)->sanitizeUserName($user),
             ]);
         }
         return implode(', ', $links);

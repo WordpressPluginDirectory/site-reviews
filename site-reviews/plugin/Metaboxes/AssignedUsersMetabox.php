@@ -25,14 +25,11 @@ class AssignedUsersMetabox implements MetaboxContract
         $review = glsr(ReviewManager::class)->get($post->ID);
         wp_nonce_field('assigned_users', '_nonce-assigned-users', false);
         $templates = array_reduce($review->assigned_users, function ($carry, $userId) {
-            $user = get_userdata($userId);
+            $user = get_user_by('id', $userId);
             if (!$user) {
                 return $carry;
             }
-            $name = glsr(Sanitizer::class)->sanitizeUserName(
-                $user->display_name,
-                $user->user_nicename
-            );
+            $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             return $carry.glsr(Template::class)->build('partials/editor/assigned-entry', [
                 'context' => [
                     'data.id' => $userId,

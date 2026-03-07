@@ -16,6 +16,12 @@ abstract class AbstractCommand implements CommandContract
         $this->result = false;
     }
 
+    public function hasRequest(): bool
+    {
+        return isset($this->request)
+            && is_a($this->request, Request::class);
+    }
+
     public function pass(): void
     {
         $this->result = true;
@@ -26,12 +32,12 @@ abstract class AbstractCommand implements CommandContract
         return Url::home();
     }
 
-    public function request(): ?Request
+    public function request(): Request
     {
-        if (isset($this->request) && is_a($this->request, Request::class)) {
-            return $this->request;
+        if (!$this->hasRequest()) {
+            return new Request();
         }
-        return null;
+        return $this->request; // @phpstan-ignore-line
     }
 
     public function response(): array
@@ -45,10 +51,15 @@ abstract class AbstractCommand implements CommandContract
         if ($this->successful()) {
             wp_send_json_success($data);
         }
+        $referer = trailingslashit((string) wp_get_referer());
+        $admin_url = trailingslashit(admin_url());
+        if (!str_starts_with(esc_url_raw($referer), esc_url_raw($admin_url))) {
+            wp_send_json_error($data);
+        }
         if (empty($data['notices'])) {
             glsr(Notice::class)->addError(
-                sprintf(_x('Something went wrong, check the <a href="%s">Site Reviews &rarr; Tools &rarr; Console</a> page for errors.', 'admin-text', 'site-reviews'),
-                    glsr_admin_url('tools', 'console')
+                sprintf(_x('Something went wrong, check the %s page for errors.', 'link to Console page (admin-text)', 'site-reviews'),
+                    glsr_admin_link('tools.console')
                 )
             );
             $data['notices'] = glsr(Notice::class)->get();

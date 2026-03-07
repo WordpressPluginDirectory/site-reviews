@@ -29,14 +29,11 @@ class ListTableController extends AbstractController
         foreach ($postIds as $key) {
             $postId = absint(substr($key, 5));
             $userId = (int) wp_check_post_lock($postId);
-            $user = get_userdata($userId);
+            $user = get_user_by('id', $userId);
             if (!$user) {
                 continue;
             }
-            $name = glsr(Sanitizer::class)->sanitizeUserName(
-                $user->display_name,
-                $user->user_nicename
-            );
+            $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             if (!glsr()->can('edit_post', $postId) && glsr()->can('respond_to_post', $postId)) {
                 $send = [
                     'text' => sprintf(_x('%s is currently editing', 'admin-text', 'site-reviews'), $name),
@@ -162,7 +159,7 @@ class ListTableController extends AbstractController
      */
     public function filterRowActions(array $actions, \WP_Post $post): array
     {
-        if (glsr()->post_type !== Arr::get($post, 'post_type') || 'trash' === $post->post_status) {
+        if (glsr()->post_type !== $post->post_type || 'trash' === $post->post_status) {
             return $actions;
         }
         unset($actions['inline hide-if-no-js']);
@@ -273,12 +270,9 @@ class ListTableController extends AbstractController
         }
         if ($last = wp_check_post_lock($postId)) {
             $name = _x('Someone', 'admin-text', 'site-reviews');
-            $user = get_userdata($last);
+            $user = get_user_by('id', $last);
             if ($user) {
-                $name = glsr(Sanitizer::class)->sanitizeUserName(
-                    $user->display_name,
-                    $user->user_nicename
-                );
+                $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             }
             $message = esc_html_x('Saving is disabled: %s is currently editing this review.', 'admin-text', 'site-reviews');
             printf($message, $name);
@@ -286,7 +280,8 @@ class ListTableController extends AbstractController
         }
         $response = (string) filter_input(INPUT_POST, '_response');
         glsr(ReviewManager::class)->updateResponse($postId, compact('response'));
-        glsr()->action('cache/flush', glsr_get_review($postId));
+        $review = glsr_get_review($postId);
+        glsr()->action('cache/flush', "review_{$review->ID}_responded", $review);
         global $mode;
         $mode = Str::restrictTo(['excerpt', 'list'], (string) filter_input(INPUT_POST, 'post_view'), 'list');
         $table = new ReviewsListTable(['screen' => convert_to_screen($screen)]);

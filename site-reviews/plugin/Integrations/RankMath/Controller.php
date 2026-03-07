@@ -3,8 +3,8 @@
 namespace GeminiLabs\SiteReviews\Integrations\RankMath;
 
 use GeminiLabs\SiteReviews\Controllers\AbstractController;
+use GeminiLabs\SiteReviews\Defaults\RatingSchemaTypeDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
-use GeminiLabs\SiteReviews\Integrations\RankMath\Defaults\RatingSchemaTypeDefaults;
 use GeminiLabs\SiteReviews\Modules\Schema;
 
 class Controller extends AbstractController
@@ -23,6 +23,11 @@ class Controller extends AbstractController
         $aggregateRatingSchema = Arr::get($schema, 'aggregateRating');
         $reviewSchema = Arr::get($schema, 'review');
         foreach ($data as $key => $values) {
+            if ('richSnippet' !== $key
+                && !str_starts_with($key, 'new-') // used in preview
+                && !str_starts_with($key, 'schema-')) {
+                continue;
+            }
             $type = $values['@type'] ?? '';
             if (!in_array($type, $allowedTypes)) {
                 continue;

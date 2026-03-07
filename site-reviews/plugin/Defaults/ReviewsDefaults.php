@@ -16,6 +16,7 @@ class ReviewsDefaults extends DefaultsAbstract
      */
     public array $casts = [
         'terms' => 'string',
+        'verified' => 'string',
     ];
 
     /**
@@ -35,8 +36,9 @@ class ReviewsDefaults extends DefaultsAbstract
             'random',
             'rating',
         ],
-        'status' => ['all', 'approved', 'pending', 'publish', 'unapproved'],
+        'status' => ['all', 'approved', 'hold', 'pending', 'publish', 'unapproved'],
         'terms' => ['0', 'false', '1', 'true'],
+        'verified' => ['0', 'false', '1', 'true'],
     ];
 
     /**
@@ -46,9 +48,9 @@ class ReviewsDefaults extends DefaultsAbstract
      */
     public array $mapped = [
         'assigned_to' => 'assigned_posts',
+        'author' => 'user__in',
         'author_id' => 'user__in',
         'category' => 'assigned_terms',
-        'count' => 'per_page', // @deprecated in v4.1.0
         'display' => 'per_page',
         'exclude' => 'post__not_in',
         'include' => 'post__in',
@@ -109,27 +111,8 @@ class ReviewsDefaults extends DefaultsAbstract
             'type' => '',
             'user__in' => [],
             'user__not_in' => [],
+            'verified' => '',
         ];
-    }
-
-    /**
-     * Normalize provided values, this always runs first.
-     */
-    protected function normalize(array $values = []): array
-    {
-        if ($postIds = Arr::getAs('array', $values, 'assigned_posts')) {
-            $values['assigned_posts_types'] = [];
-            foreach ($postIds as $postType) {
-                if (!is_numeric($postType) && post_type_exists($postType)) {
-                    $values['assigned_posts'] = []; // query only by assigned post types!
-                    $values['assigned_posts_types'][] = $postType;
-                }
-            }
-        } else {
-            $postTypes = glsr(Sanitizer::class)->sanitizeArrayString(Arr::get($values, 'assigned_posts_types'));
-            $values['assigned_posts_types'] = array_filter($postTypes, 'post_type_exists');
-        }
-        return $values;
     }
 
     /**
@@ -143,8 +126,17 @@ class ReviewsDefaults extends DefaultsAbstract
         $values['order'] = $this->finalizeOrder($values['order']);
         $values['orderby'] = $this->finalizeOrderby($values['orderby']);
         $values['status'] = $this->finalizeStatus($values['status']);
-        $values['terms'] = $this->finalizeTerms($values['terms']);
+        $values['terms'] = $this->finalizeBoolValue($values['terms']);
+        $values['verified'] = $this->finalizeBoolValue($values['verified']);
         return $values;
+    }
+
+    protected function finalizeBoolValue(string $value): int
+    {
+        if (!empty($value)) {
+            return Cast::toInt(Cast::toBool($value));
+        }
+        return -1;
     }
 
     protected function finalizeDate($value): array
@@ -192,18 +184,31 @@ class ReviewsDefaults extends DefaultsAbstract
         $statuses = [
             'all' => -1,
             'approved' => 1,
+            'hold' => 0,
             'pending' => 0,
             'publish' => 1,
             'unapproved' => 0,
         ];
-        return $statuses[$value];
+        return $statuses[$value] ?? 1;
     }
 
-    protected function finalizeTerms(string $value): int
+    /**
+     * Normalize provided values, this always runs first.
+     */
+    protected function normalize(array $values = []): array
     {
-        if (!empty($value)) {
-            return Cast::toInt(Cast::toBool($value));
+        if ($postIds = Arr::getAs('array', $values, 'assigned_posts')) {
+            $values['assigned_posts_types'] = [];
+            foreach ($postIds as $postType) {
+                if (!is_numeric($postType) && post_type_exists($postType)) {
+                    $values['assigned_posts'] = []; // query only by assigned post types!
+                    $values['assigned_posts_types'][] = $postType;
+                }
+            }
+        } else {
+            $postTypes = glsr(Sanitizer::class)->sanitizeArrayString(Arr::get($values, 'assigned_posts_types'));
+            $values['assigned_posts_types'] = array_filter($postTypes, 'post_type_exists');
         }
-        return -1;
+        return $values;
     }
 }

@@ -2,12 +2,13 @@
 
 namespace GeminiLabs\SiteReviews\Integrations\UltimateMember;
 
-use GeminiLabs\SiteReviews\Hooks\AbstractHooks;
+use GeminiLabs\SiteReviews\Integrations\IntegrationHooks;
+use GeminiLabs\SiteReviews\Integrations\UltimateMember\Controllers\AccountController;
 use GeminiLabs\SiteReviews\Integrations\UltimateMember\Controllers\Controller;
 use GeminiLabs\SiteReviews\Integrations\UltimateMember\Controllers\DirectoryController;
 use GeminiLabs\SiteReviews\Integrations\UltimateMember\Controllers\ProfileController;
 
-class Hooks extends AbstractHooks
+class Hooks extends IntegrationHooks
 {
     public function run(): void
     {
@@ -28,6 +29,10 @@ class Hooks extends AbstractHooks
             $this->hook(Controller::class, [
                 ['filterInlineStyles', 'site-reviews/enqueue/public/inline-styles'],
             ]);
+            $this->hook(AccountController::class, [
+                ['filterAccountContent', 'um_account_content_hook_reviews'],
+                ['filterAccountTabs', 'um_account_page_default_tabs_hook'],
+            ]);
             $this->hook(DirectoryController::class, [
                 ['filterAjaxMembersData', 'um_ajax_get_members_data', 50, 2],
                 ['filterDirectoryProfileOptions', 'um_admin_extend_directory_options_profile', 15],
@@ -47,8 +52,8 @@ class Hooks extends AbstractHooks
 
     protected function isEnabled(): bool
     {
-        return 'yes' === $this->option('integrations.ultimatemember.enabled')
-            && $this->isInstalled();
+        return $this->isInstalled()
+            && 'yes' === $this->option('integrations.ultimatemember.enabled');
     }
 
     protected function isInstalled(): bool

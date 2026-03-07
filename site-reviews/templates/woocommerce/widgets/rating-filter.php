@@ -1,6 +1,9 @@
-<?php defined('WPINC') || exit; ?>
-
-<ul class="<?php echo esc_attr($style); ?>">
+<?php defined('ABSPATH') || exit;
+/**
+ * @version 1.0.0
+ */
+?>
+<ul class="<?php echo esc_attr($class); ?>">
     <?php foreach ($filters as $filter) { ?>
         <li class="<?php echo esc_attr($filter->classes); ?>">
             <a href="<?php echo esc_url($filter->permalink); ?>">

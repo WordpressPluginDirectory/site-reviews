@@ -183,12 +183,10 @@ class Text
      */
     protected static function iterator(string $text)
     {
-        if (extension_loaded('intl')) {
-            $iterator = \IntlRuleBasedBreakIterator::createWordInstance('');
-        }
-        if (empty($iterator)) {
+        if (!extension_loaded('intl')) {
             return null;
         }
+        $iterator = \IntlRuleBasedBreakIterator::createWordInstance('');
         $normalizedText = \Normalizer::normalize($text);
         if (empty($normalizedText)) {
             return null;
@@ -202,7 +200,7 @@ class Text
     protected static function replaceTags(string $text): array
     {
         $map = [];
-        $result = preg_replace_callback('|<([a-z+])[^>]*?>.*?</\\1>|siu', function ($matches) use (&$map) {
+        $result = preg_replace_callback('|<([a-z]+)[^>]*?>.*?</\\1>|siu', function ($matches) use (&$map) {
             $map[] = $matches[0];
             return '⍈';
         }, $text);

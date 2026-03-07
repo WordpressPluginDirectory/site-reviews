@@ -1,5 +1,8 @@
-<?php defined('ABSPATH') || exit; ?>
+<?php defined('ABSPATH') || exit;
 
+$schema = (new \GeminiLabs\SiteReviews\Controllers\Api\Version1\Schema\SummarySchema())->schema();
+
+?>
 <div class="glsr-card postbox">
     <h3 class="glsr-card-heading">
         <button type="button" class="glsr-accordion-trigger" aria-expanded="false" aria-controls="api-summary">
@@ -26,42 +29,14 @@
                     </tr>
                 </thead>
                 <tbody>
+                <?php foreach ($schema['properties'] as $field => $values) { ?>
                     <tr>
-                        <td><strong>average</strong></td>
-                        <td>number</td>
-                        <td>view</td>
-                        <td>The average rating.</td>
+                        <td><strong><?php echo esc_html($field); ?></strong></td>
+                        <td><?php echo esc_html($values['type'] ?? ''); ?></td>
+                        <td><?php echo esc_html(implode(', ', ($values['context'] ?? []))); ?></td>
+                        <td><?php echo esc_html($values['description'] ?? ''); ?></td>
                     </tr>
-                    <tr>
-                        <td><strong>maximum</strong></td>
-                        <td>integer</td>
-                        <td>view</td>
-                        <td>The defined maximum rating.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>minimum</strong></td>
-                        <td>integer</td>
-                        <td>view</td>
-                        <td>The defined minumum rating.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>ranking</strong></td>
-                        <td>number</td>
-                        <td>view</td>
-                        <td>The bayesian ranking number.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>ratings</strong></td>
-                        <td>array</td>
-                        <td>view</td>
-                        <td>The total number of reviews for each rating level from zero to maximum rating.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>reviews</strong></td>
-                        <td>integer</td>
-                        <td>view</td>
-                        <td>The total number of reviews used to calculate the average.</td>
-                    </tr>
+                <?php } ?>
                 </tbody>
             </table>
         </div>
@@ -71,6 +46,8 @@
         <pre><code class="language-bash">/site-reviews/v1/summary?_fields=average,ranking</code></pre>
         <p>To instruct Site Reviews to return the rendered HTML of the summary in the response instead of the summary values, you may use the <code>_rendered</code> query parameter. For example:</p>
         <pre><code class="language-bash">/site-reviews/v1/summary?_rendered=1</code></pre>
+        <p>To instruct Site Reviews to hide specific fields when rendering the summary, you may use the <code>_hide</code> query parameter. Allowed values are the same as the [site_reviews_summary] shortcode hide options. For example:</p>
+        <pre><code class="language-bash">/site-reviews/v1/summary?_rendered=1&_hide=rating,bars</code></pre>
 
         <h3>List The Summary</h3>
         <p>Query this endpoint to retrieve the rating summary. The response you receive can be controlled and filtered using the URL query parameters below.</p>
@@ -145,14 +122,8 @@
                         <td></td>
                         <td>
                             Use rating values of a custom rating field; use the custom rating Field Name as the value.
-                            <br>
-                            <span class="glsr-notice-inline is-warning"><a href="https://niftyplugins.com/plugins/site-reviews-forms/" target="_blank">Review Forms</a> addon required.</span>
+                            <div class="glsr-notice-inline components-notice is-warning"><?php echo glsr_premium_link('site-reviews-forms'); ?> addon required.</div>
                         </td>
-                    </tr>
-                    <tr>
-                        <td><strong>rendered</strong></td>
-                        <td>0</td>
-                        <td>Return a rendered result of the summary. One of: <code>0</code>, <code>1</code></td>
                     </tr>
                     <tr>
                         <td><strong>status</strong></td>
@@ -168,9 +139,8 @@
                         <td><strong>theme</strong></td>
                         <td></td>
                         <td>
-                            Render the summary with a specific custom review theme (ID); only works with the <code>rendered</code> parameter.
-                            <br>
-                            <span class="glsr-notice-inline is-warning"><a href="https://niftyplugins.com/plugins/site-reviews-themes/" target="_blank">Review Themes</a> addon required.</span>
+                            Render the summary rating using a specific custom review theme (ID); only works with the <code>rendered</code> parameter.
+                            <div class="glsr-notice-inline components-notice is-warning"><?php echo glsr_premium_link('site-reviews-themes'); ?> addon required.</div>
                         </td>
                     </tr>
                     <tr>
@@ -187,6 +157,11 @@
                         <td><strong>user__not_in</strong></td>
                         <td></td>
                         <td>Ensure summary excludes reviews authored by specific users (IDs or usernames).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>verified</strong></td>
+                        <td></td>
+                        <td>Limit summary to reviews that are either verified or not verified. One of: <code>0</code>, <code>1</code></td>
                     </tr>
                 </tbody>
             </table>

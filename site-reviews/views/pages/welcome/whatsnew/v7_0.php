@@ -15,24 +15,24 @@
             <li>Added an example CSV file that can be downloaded on the Import Reviews tool</li>
             <li>Added <a href="https://avada.com/" target="_blank">Avada Fusion Builder</a> elements</li>
             <li>Added basic style controls to the Elementor widgets</li>
-            <li>Added <a data-expand="#tools-ip-detection" href="<?php echo glsr_admin_url('tools', 'general'); ?>">Configure IP Address Detection</a> tool</li>
+            <li>Added <?php echo glsr_admin_link('tools.general', 'Configure IP Address Detection', '#tools-ip-detection'); ?> tool</li>
             <li>Added Dashboard widget</li>
             <li>Added exponential-backoff strategy to API calls</li>
             <li>Added <a href="https://crocoblock.com/plugins/jetwoobuilder/" target="_blank">JetWooBuilder</a> integration</li>
             <li>Added Migrate Product Ratings to the Import Roduct Reviews tool (allows third-party plugins to filter products by rating)</li>
             <li>Added Reviews metabox to WooCommerce product pages</li>
             <li>Added <a href="https://wordpress.org/plugins/wp-seopress/" target="_blank">SEOPress</a> integration</li>
-            <li>Added support for conditional fields in review forms (<a href="https://niftyplugins.com/plugins/site-reviews-forms/" target="_blank">Review Forms</a> addon required)</li>
+            <li>Added support for conditional fields in review forms (<?php echo glsr_premium_link('site-reviews-forms'); ?> addon required)</li>
             <li>Added support for multilingual categories</li>
             <li>Added support for SQLite databases</li>
-            <li>Added the <a href="https://niftyplugins.com/plugins/site-reviews-actions/" target="_blank">Review Actions</a> addon</li>
+            <li>Added the <?php echo glsr_premium_link('site-reviews-actions'); ?> addon</li>
         </ul>
 
-        <h4>📢 Changed</h4>
+        <h4>⚠️ Changed</h4>
         <ul>
-            <li>⚠️ Changed the minimum required version of PHP to v7.4</li>
-            <li>⚠️ Changed the minimum required version of WordPress to v6.1</li>
-            <li>⚠️ Moved all CSS variables from <code>:root {}</code> to <code>body {}</code></li>
+            <li>Changed the minimum required version of PHP to v7.4</li>
+            <li>Changed the minimum required version of WordPress to v6.1</li>
+            <li>Moved all CSS variables from <code>:root {}</code> to <code>body {}</code></li>
             <li>Updated Action Scheduler to v3.7.4</li>
         </ul>
 
@@ -61,7 +61,7 @@
             <li>Fixed quick/bulk editing of WooCommerce Products from automatically disabling reviews support</li>
             <li>Fixed review dates from converting the date to the site's timezone</li>
             <li>Fixed review excerpts in cases when the PHP Intl extension is misconfigured</li>
-            <li>Fixed review responses disappearing when editing reviews on the frontend (<a href="https://niftyplugins.com/plugins/site-reviews-authors/" target="_blank">Review Authors</a> addon required)</li>
+            <li>Fixed review responses disappearing when editing reviews on the frontend (<?php echo glsr_premium_link('site-reviews-authors'); ?> addon required)</li>
             <li>Fixed SQL error when filtering reviews by "No author"</li>
             <li>Fixed the {review_link} notification tag</li>
             <li>Fixed the "new item" labels for the Site Reviews post_type and taxonomy</li>

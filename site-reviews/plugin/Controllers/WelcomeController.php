@@ -4,7 +4,6 @@ namespace GeminiLabs\SiteReviews\Controllers;
 
 use GeminiLabs\SiteReviews\Api;
 use GeminiLabs\SiteReviews\Defaults\TutorialDefaults;
-use GeminiLabs\SiteReviews\Modules\Html\Builder;
 
 class WelcomeController extends AbstractController
 {
@@ -20,21 +19,8 @@ class WelcomeController extends AbstractController
      */
     public function filterActionLinks(array $links): array
     {
-        $links['welcome'] = glsr(Builder::class)->a([
-            'href' => esc_url(glsr_admin_url('welcome')),
-            'text' => _x('About', 'admin-text', 'site-reviews'),
-        ]);
+        $links['welcome'] = glsr_admin_link('welcome', _x('About', 'admin-text', 'site-reviews'));
         return $links;
-    }
-
-    /**
-     * @filter admin_title
-     */
-    public function filterAdminTitle(string $title): string
-    {
-        return "dashboard_page_{$this->welcomePage}" === glsr_current_screen()->id
-            ? sprintf(_x('Welcome to %s &#8212; WordPress', 'admin-text', 'site-reviews'), glsr()->name)
-            : $title;
     }
 
     /**
@@ -83,5 +69,17 @@ class WelcomeController extends AbstractController
             'http_referer' => (string) wp_get_referer(),
             'tabs' => $tabs,
         ]);
+    }
+
+    /**
+     * Removing the submenu page prevents the get_admin_page_title() function
+     * from accessing the page title so this hook restores it.
+     *
+     * @action load-dashboard_page_site-reviews-welcome
+     */
+    public function restorePageTitle(): void
+    {
+        global $title;
+        $title = sprintf(_x('Welcome to %s', 'admin-text', 'site-reviews'), glsr()->name);
     }
 }

@@ -9,6 +9,7 @@ use GeminiLabs\SiteReviews\Defaults\SiteReviewsDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Helpers\Str;
+use GeminiLabs\SiteReviews\Helpers\Svg;
 use GeminiLabs\SiteReviews\HookProxy;
 use GeminiLabs\SiteReviews\Integrations\WooCommerce\Metaboxes\ReviewsMetabox;
 use GeminiLabs\SiteReviews\Modules\Html\Builder;
@@ -79,6 +80,7 @@ class ProductController implements ControllerContract
      */
     public function filterProductAverageRating($value, $product): float
     {
+        // return glsr_get_ratings(['assigned_posts' => $product->get_id()])->average;
         return Cast::toFloat(get_post_meta($product->get_id(), CountManager::META_AVERAGE, true));
     }
 
@@ -160,6 +162,7 @@ class ProductController implements ControllerContract
      */
     public function filterProductReviewCount($value, $product): int
     {
+        // return glsr_get_ratings(['assigned_posts' => $product->get_id()])->reviews;
         return Cast::toInt(get_post_meta($product->get_id(), CountManager::META_REVIEWS, true));
     }
 
@@ -174,7 +177,7 @@ class ProductController implements ControllerContract
         $tabs = Arr::consolidate($tabs);
         if ($product instanceof \WC_Product && $product->get_reviews_allowed()) {
             $tabs['reviews'] = [
-                'callback' => [$this, 'renderReviews'],
+                'callback' => [$this, 'renderSingleProductReviews'],
                 'priority' => 30,
                 'title' => sprintf(__('Reviews (%d)', 'site-reviews'), $product->get_review_count()),
             ];
@@ -262,6 +265,9 @@ class ProductController implements ControllerContract
         if ('loop/rating.php' === $templateName) {
             return glsr()->path('views/integrations/woocommerce/overrides/loop-rating.php');
         }
+        if ('single-product/rating.php' === $templateName) {
+            return glsr()->path('views/integrations/woocommerce/overrides/single-product-rating.php');
+        }
         if ('single-product-reviews.php' === $templateName) {
             return glsr()->path('views/integrations/woocommerce/overrides/single-product-reviews.php');
         }
@@ -302,7 +308,37 @@ class ProductController implements ControllerContract
      */
     public function printInlineStyle(): void
     {
-        echo '<style type="text/css">#woocommerce-product-data ul.wc-tabs li.site-reviews_tab a::before { content: "\f459"; }</style>';
+        $icon = Svg::encoded('assets/images/icon-static.svg');
+        echo '<style type="text/css">'.
+            '#woocommerce-product-data ul.wc-tabs li.site-reviews_tab a::before {'.
+                'background-color: currentColor;'.
+                'mask-image: url("'.$icon.'");'.
+                'mask-position: center;'.
+                'mask-repeat: no-repeat;'.
+                'mask-size: 1em;'.
+            '}'.
+        '</style>';
+    }
+
+    /**
+     * @action site-reviews/woocommerce/render/loop/rating
+     */
+    public function renderLoopRating(): void
+    {
+        global $product;
+        if (!wc_review_ratings_enabled()) {
+            return;
+        }
+        $ratings = glsr_get_ratings(['assigned_posts' => 'post_id']);
+        if (0 >= $ratings->average && !glsr_get_option('integrations.woocommerce.display_empty', false, 'bool')) {
+            return;
+        }
+        glsr(Template::class)->render('templates/woocommerce/loop/rating', [
+            'class' => glsr(Style::class)->styleClasses(),
+            'product' => $product,
+            'ratings' => $ratings,
+            'theme' => glsr_get_option('integrations.woocommerce.style'),
+        ]);
     }
 
     /**
@@ -326,27 +362,6 @@ class ProductController implements ControllerContract
         if ('price' === $columnName && 'product' === $postType) {
             glsr()->render('views/integrations/woocommerce/bulk-edit');
         }
-    }
-
-    /**
-     * @action woocommerce_after_shop_loop_item_title
-     */
-    public function renderLoopRating(): void
-    {
-        global $product;
-        if (!wc_review_ratings_enabled()) {
-            return;
-        }
-        $ratings = glsr_get_ratings(['assigned_posts' => 'post_id']);
-        if (0 >= $ratings->average && !glsr_get_option('integrations.woocommerce.display_empty', false, 'bool')) {
-            return;
-        }
-        glsr(Template::class)->render('templates/woocommerce/loop/rating', [
-            'product' => $product,
-            'ratings' => $ratings,
-            'style' => glsr(Style::class)->styleClasses(),
-            'theme' => glsr_get_option('integrations.woocommerce.style'),
-        ]);
     }
 
     /**
@@ -375,8 +390,10 @@ class ProductController implements ControllerContract
 
     /**
      * @callback filterProductTabs
+     * 
+     * @action site-reviews/woocommerce/render/single-product-reviews
      */
-    public function renderReviews(): void
+    public function renderSingleProductReviews(): void
     {
         global $product;
         if ($product instanceof \WC_Product && $product->get_reviews_allowed()) {
@@ -393,9 +410,9 @@ class ProductController implements ControllerContract
     }
 
     /**
-     * @action woocommerce_single_product_summary
+     * @action site-reviews/woocommerce/render/single-product/rating
      */
-    public function renderTitleRating(): void
+    public function renderSingleProductRating(): void
     {
         global $product;
         $ratings = glsr_get_ratings(['assigned_posts' => 'post_id']);
@@ -403,9 +420,9 @@ class ProductController implements ControllerContract
             return;
         }
         glsr(Template::class)->render('templates/woocommerce/rating', [
+            'class' => glsr(Style::class)->styleClasses(),
             'product' => $product,
             'ratings' => $ratings,
-            'style' => glsr(Style::class)->styleClasses(),
             'theme' => glsr_get_option('integrations.woocommerce.style'),
         ]);
     }
@@ -438,18 +455,24 @@ class ProductController implements ControllerContract
         ];
         foreach ($shortcodes as $shortcode) {
             $value = trim(filter_input(INPUT_POST, $shortcode));
-            $value = glsr(Sanitizer::class)->sanitizeText($value);
+            $value = glsr(Sanitizer::class)->sanitizeTextHtml($value);
             if (empty($value)) {
                 $product->delete_meta_data($shortcode);
                 continue;
             }
-            if (1 !== preg_match("/^\[{$shortcode}(\s[^\]]*\]|\])$/", $value)) {
-                continue;
-            }
-            if (!str_contains($value, 'assigned_posts')) {
-                $value = str_replace($shortcode, sprintf('%s assigned_posts="post_id"', $shortcode), $value);
-            }
-            $product->update_meta_data($shortcode, $value);
+            $pattern = get_shortcode_regex([$shortcode]);
+            $normalizedValue = preg_replace_callback("/$pattern/", function ($match) {
+                $atts = shortcode_parse_atts($match[3]);
+                $atts['assigned_posts'] = 'post_id';
+                ksort($atts);
+                $attributes = [];
+                foreach ($atts as $key => $val) {
+                    $attributes[] = sprintf('%s="%s"', $key, esc_attr($val));
+                }
+                $attributes = implode(' ', $attributes);
+                return "[{$match[2]} {$attributes}]";
+            }, $value);
+            $product->update_meta_data($shortcode, $normalizedValue);
         }
     }
 

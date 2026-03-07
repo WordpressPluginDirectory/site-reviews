@@ -13,6 +13,7 @@ use GeminiLabs\SiteReviews\Commands\UnassignUsers;
 use GeminiLabs\SiteReviews\Database;
 use GeminiLabs\SiteReviews\Database\Cache;
 use GeminiLabs\SiteReviews\Database\CountManager;
+use GeminiLabs\SiteReviews\Database\PostMeta;
 use GeminiLabs\SiteReviews\Database\Query;
 use GeminiLabs\SiteReviews\Database\ReviewManager;
 use GeminiLabs\SiteReviews\Defaults\RatingDefaults;
@@ -21,6 +22,7 @@ use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Metaboxes\ResponseMetabox;
 use GeminiLabs\SiteReviews\Modules\Avatar;
+use GeminiLabs\SiteReviews\Modules\Html\Attributes;
 use GeminiLabs\SiteReviews\Modules\Html\ReviewHtml;
 use GeminiLabs\SiteReviews\Modules\Queue;
 use GeminiLabs\SiteReviews\Request;
@@ -71,16 +73,15 @@ class ReviewController extends AbstractController
      */
     public function filterReviewTemplate(string $template, array $data): string
     {
+        $attributes = array_filter([
+            'data-id' => $data['review']['ID'] ?? 0,
+            'data-type' => $data['review']['type'] ?? 'local',
+            'data-pinned' => $data['review']['is_pinned'] ?? 0,
+            'data-verified' => $data['review']['is_verified'] ?? 0,
+        ]);
+        $attributes = glsr(Attributes::class)->div($attributes)->toString();
         $search = 'id="review-';
-        $dataType = Arr::get($data, 'review.type', 'local');
-        $replace = sprintf('data-type="%s" %s', $dataType, $search);
-        if (Arr::get($data, 'review.is_pinned')) {
-            $replace = 'data-pinned="1" '.$replace;
-        }
-        if (Arr::get($data, 'review.is_verified')) {
-            $replace = 'data-verified="1" '.$replace;
-        }
-        return str_replace($search, $replace, $template);
+        return str_replace($search, "{$attributes} {$search}", $template);
     }
 
     /**
@@ -240,15 +241,16 @@ class ReviewController extends AbstractController
         if (is_wp_error($termIds)) {
             glsr_log()->error($termIds->get_error_message());
         }
-        if ($excluded = Cast::toArray($command->request()->decrypt('excluded'))) {
-            glsr(Database::class)->metaSet($postId, 'excluded', $excluded); // save the fields hidden in the review form
+        $excluded = Cast::toArray($command->request()->excluded);
+        if (!empty($excluded)) { // save the fields hidden in the review form
+            glsr(PostMeta::class)->set($postId, 'excluded', $excluded);
         }
         if (!empty($values->response)) { // save the response if one is provided
-            glsr(Database::class)->metaSet($postId, 'response', $values->response);
-            glsr(Database::class)->metaSet($postId, 'response_by', $values->response_by); // @phpstan-ignore-line
+            glsr(PostMeta::class)->set($postId, 'response', $values->response);
+            glsr(PostMeta::class)->set($postId, 'response_by', $values->response_by); // @phpstan-ignore-line
         }
         foreach ($values->custom as $key => $value) {
-            glsr(Database::class)->metaSet($postId, "custom_{$key}", $value);
+            glsr(PostMeta::class)->set($postId, "custom_{$key}", $value);
         }
     }
 
@@ -377,7 +379,7 @@ class ReviewController extends AbstractController
         if ($assignedUserIds = filter_input(INPUT_GET, 'user_ids', FILTER_SANITIZE_NUMBER_INT, FILTER_FORCE_ARRAY)) {
             glsr()->action('review/updated/user_ids', $review, Cast::toArray($assignedUserIds)); // trigger a recount of assigned users
         }
-        $review = glsr(ReviewManager::class)->get($review->ID); // get a fresh copy of the review
+        $review->refresh();
         glsr()->action('review/updated', $review, [], $oldPost); // pass an empty array since review values are unchanged
     }
 
@@ -423,6 +425,9 @@ class ReviewController extends AbstractController
         return $avatarUrl;
     }
 
+    /**
+     * This is run after editing a review in the admin.
+     */
     protected function updateReview(Review $review, \WP_Post $oldPost): void
     {
         $customDefaults = array_fill_keys(array_keys($review->custom()->toArray()), '');
@@ -430,21 +435,26 @@ class ReviewController extends AbstractController
         $data = wp_parse_args($data, $customDefaults); // this ensures we save all empty custom values
         if (Arr::get($data, 'is_editing_review')) {
             $data['avatar'] = $this->refreshAvatar($data, $review);
-            $data['rating'] = Arr::get($data, 'rating');
-            $data['terms'] = Arr::get($data, 'terms', 0);
-            if (!glsr()->filterBool('verification/enabled', false)) {
-                unset($data['is_verified']);
-            }
-            glsr(ReviewManager::class)->updateRating($review->ID, $data); // values are sanitized here
+            $data['rating'] ??= '';
+            $data['terms'] ??= 0;
+        }
+        if (Arr::getAs('bool', $data, 'is_pinned') === $review->is_pinned) {
+            unset($data['is_pinned']);
+        }
+        if (Arr::getAs('bool', $data, 'is_verified') === $review->is_verified || !glsr()->filterBool('verification/enabled', false)) {
+            unset($data['is_verified']);
+        }
+        if (!empty($data)) {
             glsr(ReviewManager::class)->updateCustom($review->ID, $data); // values are sanitized here
-            $review = glsr(ReviewManager::class)->get($review->ID); // get a fresh copy of the review
+            glsr(ReviewManager::class)->updateRating($review->ID, $data); // values are sanitized here
+            $review->refresh();
         }
         $assignedPostIds = filter_input(INPUT_POST, 'post_ids', FILTER_SANITIZE_NUMBER_INT, FILTER_FORCE_ARRAY);
         $assignedUserIds = filter_input(INPUT_POST, 'user_ids', FILTER_SANITIZE_NUMBER_INT, FILTER_FORCE_ARRAY);
         glsr()->action('review/updated/post_ids', $review, Cast::toArray($assignedPostIds)); // trigger a recount of assigned posts
         glsr()->action('review/updated/user_ids', $review, Cast::toArray($assignedUserIds)); // trigger a recount of assigned users
         glsr(ResponseMetabox::class)->save($review);
-        $review = glsr(ReviewManager::class)->get($review->ID); // get a fresh copy of the review
+        $review->refresh();
         glsr()->action('review/updated', $review, $data, $oldPost);
     }
 }

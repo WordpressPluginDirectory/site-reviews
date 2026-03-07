@@ -14,7 +14,7 @@ namespace GeminiLabs\SiteReviews\Contracts;
  * @property array        $errors
  * @property string       $group
  * @property string       $id
- * @property bool         $is_custom
+ * @property bool         $is_custom     If the field in a custom form
  * @property bool         $is_raw
  * @property bool         $is_valid
  * @property string       $label
@@ -31,6 +31,8 @@ namespace GeminiLabs\SiteReviews\Contracts;
  * @property string       $text
  * @property string       $type
  * @property string|array $value
+ *
+ * @phpstan-require-extends \GeminiLabs\SiteReviews\Modules\Html\Field
  */
 interface FieldContract
 {

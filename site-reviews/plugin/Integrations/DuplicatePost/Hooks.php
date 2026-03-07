@@ -2,15 +2,16 @@
 
 namespace GeminiLabs\SiteReviews\Integrations\DuplicatePost;
 
-use GeminiLabs\SiteReviews\Hooks\AbstractHooks;
+use GeminiLabs\SiteReviews\Integrations\IntegrationHooks;
 
-class Hooks extends AbstractHooks
+class Hooks extends IntegrationHooks
 {
     public function run(): void
     {
         $this->hook(Controller::class, [
             ['duplicateReview', 'duplicate_post_post_copy', 10, 2],
             ['filterBulkActions', "bulk_actions-edit-{$this->type}", 100],
+            ['filterExcludedMetaKeys', 'duplicate_post_excludelist_filter'],
             ['filterRowActions', 'post_row_actions', 100, 2],
             ['removeRewriteEditorLink', 'post_submitbox_start', 1],
         ]);

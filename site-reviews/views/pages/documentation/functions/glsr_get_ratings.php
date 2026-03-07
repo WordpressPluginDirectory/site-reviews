@@ -26,7 +26,9 @@ glsr_get_ratings(array $args = []);</code></pre>
     'rating' => '',
     'rating_field' => '',
     'status' => 'approved', // accepted values are "all", "approved", and "unapproved"
+    'terms' => '', // value can be 1 or 0
     'type' => '',
+    'verified' => '', // value can be 1 or 0
 ];</code></pre>
         <p><strong>Example Usage:</strong></p>
         <pre><code class="language-php">$ratingInfo = glsr_get_ratings([
@@ -48,7 +50,7 @@ $ratingInfo->reviews // The total number of reviews</code></pre>
         <p><strong>Helpful Tips:</strong></p>
         <ol>
             <li>
-                <p>You can use the <code><a href="<?php echo glsr_admin_url('documentation', 'functions'); ?>" data-expand="#fn-glsr_debug">glsr_debug</a></code> helper function to print the rating info to the screen:</p>
+                <p>You can use the <?php echo glsr_admin_link('documentation.functions', 'glsr_debug', '#fn-glsr_debug'); ?> helper function to print the rating info to the screen:</p>
                 <pre><code class="language-php">glsr_debug($ratingInfo);</code></pre>
             </li>
         </ol>

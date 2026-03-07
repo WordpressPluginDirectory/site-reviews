@@ -2,6 +2,7 @@
 
 namespace GeminiLabs\SiteReviews\Controllers;
 
+use GeminiLabs\SiteReviews\Addons\Compat;
 use GeminiLabs\SiteReviews\Commands\RegisterPostMeta;
 use GeminiLabs\SiteReviews\Commands\RegisterPostType;
 use GeminiLabs\SiteReviews\Commands\RegisterShortcodes;
@@ -81,11 +82,33 @@ class MainController extends AbstractController
     }
 
     /**
-     * @action plugins_loaded
+     * @action parse_query
+     */
+    public function parseAssignedPostTypesInQuery(\WP_Query $query): void
+    {
+        if (glsr()->prefix.'assigned_posts' !== $query->get('post_type')) {
+            return;
+        }
+        $postTypes = get_post_types([
+            '_builtin' => false,
+            'public' => true,
+            'show_in_rest' => true,
+            'show_ui' => true,
+        ]);
+        $postTypes[] = 'post';
+        $postTypes[] = 'page';
+        $query->is_archive = false;
+        $query->is_post_type_archive = false;
+        $query->set('post_type', array_map('sanitize_key', array_values($postTypes)));
+    }
+
+    /**
+     * @action plugins_loaded:-10
      */
     public function registerAddons(): void
     {
-        glsr()->action('addon/register', glsr());
+        glsr()->action('addon/register', glsr(Compat::class)); // @compat
+        glsr()->action('premium/register', glsr());
     }
 
     /**
@@ -149,6 +172,8 @@ class MainController extends AbstractController
      */
     public function registerWidgets(): void
     {
-        $this->execute(new RegisterWidgets());
+        if (glsr()->filterBool('register/widgets', true)) {
+            $this->execute(new RegisterWidgets());
+        }
     }
 }

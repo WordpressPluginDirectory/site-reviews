@@ -17,8 +17,12 @@ class RecaptchaV2InvisibleValidator extends CaptchaValidatorAbstract
             'hl' => $language,
             'render' => 'explicit',
         ]);
+        $badgePosition = glsr_get_option('forms.captcha.badge');
+        if (!in_array($badgePosition, ['bottomleft', 'bottomright'])) {
+            $badgePosition = 'inline';
+        }
         return glsr(CaptchaConfigDefaults::class)->merge([
-            'badge' => glsr_get_option('forms.captcha.position'),
+            'badge' => $badgePosition,
             'class' => 'glsr-g-recaptcha',
             'language' => $language,
             'sitekey' => $this->siteKey(),

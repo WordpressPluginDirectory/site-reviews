@@ -1,15 +1,17 @@
 <?php defined('ABSPATH') || exit; ?>
 
-<div class="notice notice-review glsr-notice" data-dismiss="write-review">
-    <p>
-        <?php printf('%s %s 💖',
-                sprintf(_x('Are you happy with %s?', 'Site Reviews (admin-text)', 'site-reviews'), sprintf('<strong>%s</strong>', glsr()->name)),
-                sprintf(_x('Please rate %s on WordPress and let other people know about it.', '★★★★★ (admin-text)', 'site-reviews'), '★★★★★')
-            );
-        ?>
-    </p>
-    <p class="glsr-notice-buttons">
-        <a class="button button-primary" href="https://wordpress.org/support/view/plugin-reviews/site-reviews?filter=5#new-post" target="_blank"><?php echo _x('Leave a review', 'admin-text', 'site-reviews'); ?></a>
-        <button type="button" class="button glsr-dismiss-link"><?php echo _x('No, thank you', 'admin-text', 'site-reviews'); ?></button>
-    </p>
-</div>
+<h3>
+    <?php echo $icon; ?>
+    <?php echo _x('Can You Help?', 'admin-text', 'site-reviews'); ?>
+</h3>
+<p>
+    <?php echo _x('Please rate Site Reviews 5-stars ★★★★★ on WordPress! Your support motivates me to keep improving the plugin and staying active in the forums. I promise I won’t let it go to my head...much.', 'admin-text', 'site-reviews'); ?>
+</p>
+<p class="glsr-notice-buttons">
+    <a class="components-button is-primary is-small" href="https://wordpress.org/support/view/plugin-reviews/site-reviews?filter=5#new-post" target="_blank">
+        <?php echo _x('Write a Review', 'admin-text', 'site-reviews'); ?>
+    </a>
+    <button data-dismiss="interval" type="button" class="components-button is-tertiary is-small">
+        <?php echo _x('Not Now', 'admin-text', 'site-reviews'); ?>
+    </button>
+</p>

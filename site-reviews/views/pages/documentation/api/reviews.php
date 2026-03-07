@@ -99,8 +99,7 @@
                         <td>edit, view</td>
                         <td>
                             The array of image objects attached to the review.
-                            <br>
-                            <span class="glsr-notice-inline is-warning"><a href="https://niftyplugins.com/plugins/site-reviews-images/" target="_blank">Review Images</a> addon required.</span>
+                            <div class="glsr-notice-inline components-notice is-warning"><?php echo glsr_premium_link('site-reviews-images'); ?> addon required.</div>
                         </td>
                     </tr>
                     <tr>
@@ -214,6 +213,8 @@
         <pre><code class="language-bash">/site-reviews/v1/reviews?_fields=id,title,content,rating</code></pre>
         <p>To instruct Site Reviews to return the rendered HTML of the reviews in the response instead of an array of review values, you may use the <code>_rendered</code> query parameter. For example:</p>
         <pre><code class="language-bash">/site-reviews/v1/reviews?_rendered=1</code></pre>
+        <p>To instruct Site Reviews to hide specific fields when rendering reviews, you may use the <code>_hide</code> query parameter. Allowed values are the same as the [site_reviews] shortcode hide options. For example:</p>
+        <pre><code class="language-bash">/site-reviews/v1/reviews?_rendered=1&_hide=rating,title</code></pre>
 
         <h3>List Reviews</h3>
         <p>Query this endpoint to retrieve a collection of reviews. The response you receive can be controlled and filtered using the URL query parameters below.</p>
@@ -273,8 +274,7 @@
                         <td></td>
                         <td>
                             Render the review with a review template of a specific custom review form (ID); only works with the <code>rendered</code> parameter.
-                            <br>
-                            <span class="glsr-notice-inline is-warning"><a href="https://niftyplugins.com/plugins/site-reviews-forms/" target="_blank">Review Forms</a> addon required.</span>
+                            <div class="glsr-notice-inline components-notice is-warning"><?php echo glsr_premium_link('site-reviews-forms'); ?> addon required.</div>
                         </td>
                     </tr>
                     <tr>
@@ -318,11 +318,6 @@
                         <td>Limit result set to reviews containing a given <em>minimum</em> rating.</td>
                     </tr>
                     <tr>
-                        <td><strong>rendered</strong></td>
-                        <td>0</td>
-                        <td>Return a rendered result of the reviews and the corresponding pagination. One of: <code>0</code>, <code>1</code></td>
-                    </tr>
-                    <tr>
                         <td><strong>status</strong></td>
                         <td>approved</td>
                         <td>Limit result set to reviews containing a given status. One of: <code>all</code>, <code>approved</code>, <code>unapproved</code></td>
@@ -337,8 +332,7 @@
                         <td></td>
                         <td>
                             Render the review with a specific custom review theme (ID); only works with the <code>rendered</code> parameter.
-                            <br>
-                            <span class="glsr-notice-inline is-warning"><a href="https://niftyplugins.com/plugins/site-reviews-themes/" target="_blank">Review Themes</a> addon required.</span>
+                            <div class="glsr-notice-inline components-notice is-warning"><?php echo glsr_premium_link('site-reviews-themes'); ?> addon required.</div>
                         </td>
                     </tr>
                     <tr>
@@ -355,6 +349,11 @@
                         <td><strong>user__not_in</strong></td>
                         <td></td>
                         <td>Ensure result set excludes reviews authored by specific users (IDs or usernames).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>verified</strong></td>
+                        <td></td>
+                        <td>Limit result set to reviews that are either verified or not verified. One of: <code>0</code>, <code>1</code></td>
                     </tr>
                 </tbody>
             </table>
@@ -459,6 +458,13 @@
                     <tr>
                         <td><strong>email</strong></td>
                         <td>The email of the reviewer.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>images</strong></td>
+                        <td>
+                            One or more image URLs separated with either a comma or <code>|</code>.
+                            <div class="glsr-notice-inline components-notice is-warning"><?php echo glsr_premium_link('site-reviews-images'); ?> addon required.</div>
+                        </td>
                     </tr>
                     <tr>
                         <td><strong>ip_address</strong></td>

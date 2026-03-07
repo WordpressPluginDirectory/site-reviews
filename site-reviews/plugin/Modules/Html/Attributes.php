@@ -113,6 +113,10 @@ class Attributes
         'time', 'url', 'week',
     ];
 
+    public const URL_ATTRIBUTES = [
+        'href', 'src',
+    ];
+
     protected array $attributes = [];
 
     /**
@@ -154,13 +158,12 @@ class Attributes
     {
         $attributes = [];
         foreach ($this->attributes as $attribute => $value) {
-            $value = esc_attr(implode(',', (array) $value));
             if (in_array($attribute, static::BOOLEAN_ATTRIBUTES)) {
                 $attributes[] = $attribute;
                 continue;
             }
-            if (str_starts_with($attribute, 'data-')) {
-                $value = esc_js($value);
+            if (!is_scalar($value)) {
+                continue;
             }
             $attributes[] = "{$attribute}=\"{$value}\"";
         }
@@ -246,7 +249,7 @@ class Attributes
             if (is_array($value)) {
                 $value = wp_json_encode($value, JSON_HEX_APOS | JSON_NUMERIC_CHECK | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             }
-            $this->attributes[$key] = esc_js($value);
+            $this->attributes[$key] = esc_attr($value);
         }
     }
 
@@ -274,7 +277,12 @@ class Attributes
     protected function normalizeStringAttributes(): void
     {
         foreach ($this->attributes as $key => $value) {
-            if (is_string($value)) {
+            if (!is_string($value)) {
+                continue;
+            }
+            if (in_array($key, static::URL_ATTRIBUTES)) {
+                $this->attributes[$key] = esc_url(trim($value));
+            } else {
                 $this->attributes[$key] = esc_attr(trim($value));
             }
         }

@@ -12,7 +12,7 @@ use GeminiLabs\SiteReviews\Review;
 
 class MyCredHook extends \myCRED_Hook
 {
-    public function __construct($preferences, $type = MYCRED_DEFAULT_TYPE_KEY)
+    public function __construct($preferences, $type = \MYCRED_DEFAULT_TYPE_KEY)
     {
         $args = [
             'id' => Str::snakeCase(glsr()->id),
@@ -30,7 +30,7 @@ class MyCredHook extends \myCRED_Hook
      */
     public function onReviewCreated(Review $review): void
     {
-        $review = glsr(ReviewManager::class)->get($review->ID); // get a fresh copy of the review
+        $review->refresh();
         if ($review->is_approved) {
             $this->reviewApproved($review);
         }
@@ -44,7 +44,7 @@ class MyCredHook extends \myCRED_Hook
         if (!in_array('publish', [$new, $old])) {
             return;
         }
-        $review = glsr(ReviewManager::class)->get($review->ID); // get a fresh copy of the review
+        $review->refresh();
         if ('publish' === $new) {
             $this->reviewApproved($review);
         } elseif ('publish' === $old && 'trash' === $new) {

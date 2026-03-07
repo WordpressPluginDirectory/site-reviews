@@ -11,6 +11,10 @@ trait HookProxy
      * by WordPress, this function allows us to maintain parameter type hints and
      * prevents fatal errors without introducing complexity. If something goes wrong,
      * the error is logged to the Site Reviews console.
+     *
+     * Catching Throwable causes some PHPUnit tests to get flagged as risky with,
+     * "Test code or tested code did not (only) close its own output buffers".
+     * So if PHPUNIT_TESTING is defined then just skip the catch.
      */
     public function proxy(string $method): callable
     {
@@ -20,16 +24,17 @@ trait HookProxy
         }
         $callback = [$this, $method];
         return static function (...$args) use ($callback, $method) {
+            if (defined('PHPUNIT_TESTING')) {
+                return call_user_func_array($callback, $args);
+            }
             try {
                 return call_user_func_array($callback, $args);
-            } catch (\TypeError $error) {
+            } catch (\Throwable $error) {
                 glsr_log()->error($error->getMessage())->debug($error);
-                // if (defined('WP_DEBUG') && \WP_DEBUG) {
-                //     throw $error;
-                // }
             }
             if (str_starts_with($method, 'filter')) {
-                return array_shift($args); // return the unmodified first argument
+                // A throwable error was caught so just return the unfiltered first argument.
+                return array_shift($args);
             }
         };
     }

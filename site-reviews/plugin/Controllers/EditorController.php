@@ -47,9 +47,9 @@ class EditorController extends AbstractController
     /**
      * @filter is_protected_meta
      */
-    public function filterIsProtectedMeta(bool $protected, string $metaKey, string $metaType): bool
+    public function filterIsProtectedMeta(bool $protected, string $metaKey, ?string $metaType): bool
     {
-        if ('post' === $metaType && Str::startsWith($metaKey, ['_custom_', '_'.glsr()->prefix])) {
+        if ('post' === $metaType && Str::startsWith((string) $metaKey, ['_custom_', '_'.glsr()->prefix])) {
             if ('delete-meta' === filter_input(INPUT_POST, 'action')) {
                 return false; // allow delete but not update
             }
@@ -91,28 +91,6 @@ class EditorController extends AbstractController
             52 => $strings['reverted'],
         ];
         return $messages;
-    }
-
-    /**
-     * @action site-reviews/route/ajax/mce-shortcode
-     */
-    public function mceShortcodeAjax(Request $request): void
-    {
-        $shortcode = glsr(Sanitizer::class)->sanitizeText($request->shortcode);
-        $response = false;
-        if ($data = glsr()->retrieve("mce.{$shortcode}", false)) {
-            if (!empty($data['errors'])) {
-                $data['btn_okay'] = [esc_attr_x('Okay', 'admin-text', 'site-reviews')];
-            }
-            $response = [
-                'body' => $data['fields'],
-                'close' => $data['btn_close'],
-                'ok' => $data['btn_okay'],
-                'shortcode' => $shortcode,
-                'title' => $data['title'],
-            ];
-        }
-        wp_send_json_success($response);
     }
 
     /**

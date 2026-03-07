@@ -7,9 +7,11 @@ use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Url;
 
 /**
+ * @property int    $display;
  * @property int    $page;
  * @property string $pageUrl;
  * @property array  $pageUrlParameters;
+ * @property int    $per_page;
  */
 class NormalizePaginationArgs extends Arguments
 {
@@ -19,6 +21,7 @@ class NormalizePaginationArgs extends Arguments
         $this->normalizePage();
         $this->normalizePageUrl();
         $this->normalizePageUrlParameters();
+        $this->normalizePerPage();
     }
 
     /**
@@ -27,10 +30,8 @@ class NormalizePaginationArgs extends Arguments
     protected function normalizePage(): void
     {
         $args = glsr()->args(glsr()->retrieve(glsr()->paged_handle));
-        $page = $args->get('page', 0);
-        $this->page = $page
-            ? $page
-            : Helper::getPageNumber($args->url, $this->page);
+        $page = $args->cast('page', 'int', 0);
+        $this->page = $page ?: Helper::getPageNumber($args->url, $this->page);
     }
 
     /**
@@ -58,5 +59,13 @@ class NormalizePaginationArgs extends Arguments
         $parameters = Url::queries($args->url);
         unset($parameters[glsr()->constant('PAGED_QUERY_VAR')]);
         $this->pageUrlParameters = $parameters;
+    }
+
+    /**
+     * Set the number of results per page.
+     */
+    protected function normalizePerPage(): void
+    {
+        $this->per_page ??= $this->display ??= 10;
     }
 }

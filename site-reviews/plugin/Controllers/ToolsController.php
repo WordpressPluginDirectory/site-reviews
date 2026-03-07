@@ -9,6 +9,7 @@ use GeminiLabs\SiteReviews\Commands\ConvertTableEngine;
 use GeminiLabs\SiteReviews\Commands\DetectIpAddress;
 use GeminiLabs\SiteReviews\Commands\DownloadCsvTemplate;
 use GeminiLabs\SiteReviews\Commands\ExportReviews;
+use GeminiLabs\SiteReviews\Commands\GeolocateReviews;
 use GeminiLabs\SiteReviews\Commands\ImportReviews;
 use GeminiLabs\SiteReviews\Commands\ImportReviewsAttachments;
 use GeminiLabs\SiteReviews\Commands\ImportReviewsCleanup;
@@ -173,7 +174,7 @@ class ToolsController extends AbstractController
             _x('Console reloaded.', 'admin-text', 'site-reviews')
         );
         wp_send_json_success([
-            'console' => glsr(Console::class)->getRaw(), // we don't need to esc_html here
+            'console' => sanitize_textarea_field(glsr(Console::class)->getRaw()),
             'notices' => glsr(Notice::class)->get(),
         ]);
     }
@@ -193,7 +194,7 @@ class ToolsController extends AbstractController
         }
         $systemInfo = glsr(SystemInfo::class)->get();
         wp_send_json_success([
-            'data' => esc_html($systemInfo),
+            'data' => sanitize_textarea_field($systemInfo),
         ]);
     }
 
@@ -217,6 +218,23 @@ class ToolsController extends AbstractController
             }
         }
         return $value;
+    }
+
+    /**
+     * @action site-reviews/route/ajax/geolocate-reviews
+     */
+    public function geolocateReviewsAjax(Request $request): void
+    {
+        if (!glsr()->hasPermission('tools', 'general')) {
+            glsr(Notice::class)->addError(
+                _x('You do not have permission to geolocate reviews.', 'admin-text', 'site-reviews')
+            );
+            wp_send_json_error([
+                'notices' => glsr(Notice::class)->get(),
+            ]);
+        }
+        $command = $this->execute(new GeolocateReviews());
+        $command->sendJsonResponse();
     }
 
     /**

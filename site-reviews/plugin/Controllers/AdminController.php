@@ -6,13 +6,12 @@ use GeminiLabs\SiteReviews\Commands\ApproveReview;
 use GeminiLabs\SiteReviews\Commands\EnqueueAdminAssets;
 use GeminiLabs\SiteReviews\Commands\ExportRatings;
 use GeminiLabs\SiteReviews\Commands\ImportRatings;
-use GeminiLabs\SiteReviews\Commands\RegisterTinymcePopups;
 use GeminiLabs\SiteReviews\Commands\TogglePinned;
 use GeminiLabs\SiteReviews\Commands\ToggleStatus;
 use GeminiLabs\SiteReviews\Database;
 use GeminiLabs\SiteReviews\Defaults\ColumnFilterbyDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
-use GeminiLabs\SiteReviews\Helpers\Str;
+use GeminiLabs\SiteReviews\Helpers\Svg;
 use GeminiLabs\SiteReviews\Install;
 use GeminiLabs\SiteReviews\License;
 use GeminiLabs\SiteReviews\Modules\Html\Builder;
@@ -68,19 +67,11 @@ class AdminController extends AbstractController
      */
     public function filterActionLinks(array $links): array
     {
+        $actions = [];
         if (glsr()->hasPermission('settings')) {
-            $links['settings'] = glsr(Builder::class)->a([
-                'href' => glsr_admin_url('settings'),
-                'text' => _x('Settings', 'admin-text', 'site-reviews'),
-            ]);
+            $actions['settings'] = glsr_admin_link('settings', _x('Settings', 'admin-text', 'site-reviews'));
         }
-        if (glsr()->hasPermission('documentation')) {
-            $links['documentation'] = glsr(Builder::class)->a([
-                'href' => glsr_admin_url('documentation'),
-                'text' => _x('Help', 'admin-text', 'site-reviews'),
-            ]);
-        }
-        return $links;
+        return array_merge($actions, $links);
     }
 
     /**
@@ -92,6 +83,26 @@ class AdminController extends AbstractController
             $this->execute(new ExportRatings(glsr()->args($args)));
         }
         return $args;
+    }
+
+    /**
+     * @filter plugin_row_meta
+     */
+    public function filterRowMeta(array $links, string $file): array
+    {
+        if ($file !== glsr()->basename) {
+            return $links;
+        }
+        $actions = [];
+        if (glsr()->hasPermission('documentation')) {
+            $actions['documentation'] = glsr_admin_link('documentatio.n', _x('Documentation', 'admin-text', 'site-reviews'));
+        }
+        $actions['support'] = glsr(Builder::class)->a([
+            'aria-label' => esc_attr_x('Visit community forums', 'admin-text', 'site-reviews'),
+            'href' => esc_url('https://wordpress.org/support/plugin/site-reviews'),
+            'text' => esc_html_x('Community support', 'admin-text', 'site-reviews'),
+        ]);
+        return array_merge($links, $actions);
     }
 
     /**
@@ -162,15 +173,26 @@ class AdminController extends AbstractController
      */
     public function printInlineStyle(): void
     {
-        echo '<style type="text/css">a[href="edit.php?post_type=site-review&page='.Str::dashCase(glsr()->prefix).'addons"]:not(.current),a[href="edit.php?post_type=site-review&page='.Str::dashCase(glsr()->prefix).'addons"]:focus,a[href="edit.php?post_type=site-review&page='.Str::dashCase(glsr()->prefix).'addons"]:hover{color:#F6E05E!important;}</style>';
-    }
-
-    /**
-     * @action admin_init
-     */
-    public function registerTinymcePopups(): void
-    {
-        $this->execute(new RegisterTinymcePopups());
+        $rules = [];
+        $rules[] = '@media only screen and (max-width: 960px) {'.
+            '.auto-fold #adminmenu .menu-icon-site-review div.wp-menu-image {'.
+                'height: 34px;'.
+            '}'.
+        '}';
+        $rules[] = 'li:is(.submenu_glsr-settings,.submenu_glsr-premium)::before {'.
+            'background: hsla(0,0%,100%,.2);'.
+            'content: \'\';'.
+            'display: block;'.
+            'height: 1px;'.
+            'margin: 5px 0;'.
+            'width: 100%;'.
+        '}';
+        if (!glsr(License::class)->isPremium()) {
+            $rules[] = 'li.submenu_glsr-premium a {'.
+                'color: #e8ff5e !important;'. // --glsr-primary
+            '}';
+        }
+        printf('<style type="text/css">%s</style>', implode('', $rules));
     }
 
     /**
@@ -179,7 +201,7 @@ class AdminController extends AbstractController
     public function renderPageHeader(): void
     {
         global $post_type_object, $title;
-        if (!$this->isReviewAdminScreen()) {
+        if (!$this->isAdminScreen()) {
             return;
         }
         $buttons = [];
@@ -187,12 +209,20 @@ class AdminController extends AbstractController
         if (glsr()->post_type === $screen->post_type && !glsr(License::class)->isPremium()) {
             $buttons['premium'] = [
                 'class' => 'components-button is-primary glsr-try-premium',
-                'href' => 'https://niftyplugins.com/plugins/site-reviews-premium/',
+                'href' => glsr_premium_url('site-reviews-premium'),
                 'target' => '_blank',
                 'text' => _x('Try Premium', 'admin-text', 'site-reviews'),
             ];
         }
-        if (in_array($screen->base, ['edit', 'post'])) {
+        if (glsr()->can('import') && 'edit' === $screen->base) {
+            $buttons['import'] = [
+                'class' => 'components-button is-secondary',
+                'data-expand' => '#tools-import-reviews',
+                'href' => glsr_admin_url('tools', 'general'),
+                'text' => _x('Import', 'admin-text', 'site-reviews'),
+            ];
+        }
+        if (glsr()->can('create_posts') && in_array($screen->base, ['edit', 'post'])) {
             $buttons['new'] = [
                 'class' => 'components-button is-secondary glsr-new-post',
                 'data-new' => '',
@@ -204,30 +234,9 @@ class AdminController extends AbstractController
         glsr()->render('views/partials/page-header', [
             'buttons' => $buttons,
             'hasScreenOptions' => in_array($screen->base, ['edit', 'edit-tags', 'post']),
-            'logo' => file_get_contents(glsr()->path('assets/images/mascot.svg')),
+            'logo' => Svg::get('assets/images/icon.svg', ['width' => 44]),
             'title' => esc_html($title),
         ]);
-    }
-
-    /**
-     * @action media_buttons
-     */
-    public function renderTinymceButton(string $editorId): void
-    {
-        $allowedEditors = glsr()->filterArray('tinymce/editor-ids', ['content'], $editorId);
-        if ('post' !== glsr_current_screen()->base || !in_array($editorId, $allowedEditors)) {
-            return;
-        }
-        $shortcodes = [];
-        foreach (glsr()->retrieveAs('array', 'mce', []) as $shortcode => $values) {
-            $shortcodes[$shortcode] = $values;
-        }
-        if (!empty($shortcodes)) {
-            $shortcodes = wp_list_sort($shortcodes, 'label', 'ASC', true); // preserve keys
-            glsr()->render('partials/editor/tinymce', [
-                'shortcodes' => $shortcodes,
-            ]);
-        }
     }
 
     /**
@@ -238,7 +247,7 @@ class AdminController extends AbstractController
         if (defined('GLSR_UNIT_TESTS')) {
             return;
         }
-        if (!$this->isReviewAdminScreen()) {
+        if (!$this->isAdminScreen()) {
             return;
         }
         if (glsr(Queue::class)->isPending('queue/migration')) {
@@ -355,9 +364,7 @@ class AdminController extends AbstractController
      */
     public function togglePinnedAjax(Request $request): void
     {
-        $command = $this->execute(new TogglePinned($request));
-        glsr()->action('cache/flush', $command->review); // @phpstan-ignore-line
-        wp_send_json_success($command->response());
+        $this->execute(new TogglePinned($request))->sendJsonResponse();
     }
 
     /**
@@ -365,7 +372,6 @@ class AdminController extends AbstractController
      */
     public function toggleStatusAjax(Request $request): void
     {
-        $command = $this->execute(new ToggleStatus($request));
-        wp_send_json_success($command->response());
+        $this->execute(new ToggleStatus($request))->sendJsonResponse();
     }
 }

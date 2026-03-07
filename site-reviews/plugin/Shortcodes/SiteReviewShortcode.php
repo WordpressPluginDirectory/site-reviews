@@ -11,18 +11,62 @@ class SiteReviewShortcode extends Shortcode
     public function buildTemplate(): string
     {
         $review = glsr(ReviewManager::class)->get($this->args['post_id']);
-        $this->debug(['review' => $review]);
-        if ($review->isValid()) {
-            $reviews = new Reviews([$review], 1, $this->args);
-            glsr()->action('get/reviews', $reviews, $this->args);
-            if ('modal' === glsr_get_option('reviews.excerpts_action')) {
-                glsr()->store('use_modal', true);
-            }
-        } else {
-            $reviews = new Reviews([], 0, $this->args);
+        $this->debug(compact('review'));
+        if (!$review->isValid()) {
+            return '';
+        }
+        $reviews = new Reviews([$review], 1, $this->args);
+        glsr()->action('get/reviews', $reviews, $this->args);
+        if ('modal' === glsr_get_option('reviews.excerpts_action')) {
+            glsr()->store('use_modal', true);
         }
         $html = new ReviewsHtml($reviews);
         return (string) $html;
+    }
+
+    public function description(): string
+    {
+        return esc_html_x('Display a single review', 'admin-text', 'site-reviews');
+    }
+
+    public function enqueue(): void
+    {
+        wp_enqueue_style('site-reviews-review-style');
+    }
+
+    public function name(): string
+    {
+        return esc_html_x('Single Review', 'admin-text', 'site-reviews');
+    }
+
+    protected function config(): array
+    {
+        return [ // order is intentional
+            'post_id' => [
+                'label' => esc_attr_x('Review Post ID', 'admin-text', 'site-reviews'),
+                'description' => esc_html_x('Select the review you want to display.', 'admin-text', 'site-reviews'),
+                'group' => 'general',
+                'placeholder' => esc_html_x('Select a review...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'hide' => [
+                'group' => 'hide',
+                'options' => $this->options('hide'),
+                'type' => 'checkbox',
+            ],
+            'id' => [
+                'description' => esc_html_x('This should be a unique value.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Custom ID', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'class' => [
+                'description' => esc_html_x('Separate multiple classes with spaces.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Additional CSS classes', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+        ];
     }
 
     protected function hideOptions(): array

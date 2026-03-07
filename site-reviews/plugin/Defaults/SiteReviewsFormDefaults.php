@@ -20,7 +20,7 @@ class SiteReviewsFormDefaults extends DefaultsAbstract
      * @var string[]
      */
     public array $guarded = [
-        'description', 'title',
+        'description',
     ];
 
     /**
@@ -31,6 +31,7 @@ class SiteReviewsFormDefaults extends DefaultsAbstract
     public array $mapped = [
         'assign_to' => 'assigned_posts',
         'category' => 'assigned_terms',
+        'className' => 'class',
         'user' => 'assigned_users',
     ];
 
@@ -42,9 +43,9 @@ class SiteReviewsFormDefaults extends DefaultsAbstract
         'class' => 'attr-class',
         'description' => 'text',
         'hide' => 'array-string',
-        'id' => 'id-hash',
+        'id' => 'id-unique',
         'reviews_id' => 'id',
-        'title' => 'text',
+        'summary_id' => '',
     ];
 
     protected function defaults(): array
@@ -60,7 +61,7 @@ class SiteReviewsFormDefaults extends DefaultsAbstract
             'hide' => '',
             'id' => '',
             'reviews_id' => '',
-            'title' => '',
+            'summary_id' => '',
         ];
     }
 

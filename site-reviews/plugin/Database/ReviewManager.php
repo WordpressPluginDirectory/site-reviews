@@ -4,9 +4,11 @@ namespace GeminiLabs\SiteReviews\Database;
 
 use GeminiLabs\SiteReviews\Commands\CreateReview;
 use GeminiLabs\SiteReviews\Database;
+use GeminiLabs\SiteReviews\Database\PostMeta;
 use GeminiLabs\SiteReviews\Defaults\CustomFieldsDefaults;
 use GeminiLabs\SiteReviews\Defaults\RatingDefaults;
 use GeminiLabs\SiteReviews\Defaults\UpdateReviewDefaults;
+use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Modules\Sanitizer;
@@ -16,17 +18,20 @@ use GeminiLabs\SiteReviews\Reviews;
 
 class ReviewManager
 {
+    /**
+     * Foreign indexes ensure that $postId is a valid Post ID.
+     */
     public function assignPost(Review $review, int $postId): bool
     {
         if (!glsr()->can('assign_post', $postId)) {
             return false;
         }
-        $where = [
+        $data = [
             'is_published' => $this->isPublishedPost($postId),
             'post_id' => $postId,
             'rating_id' => $review->rating_id,
         ];
-        if ($result = glsr(Database::class)->insert('assigned_posts', $where)) {
+        if ($result = glsr(Database::class)->insert('assigned_posts', $data)) {
             glsr(Cache::class)->delete($review->ID, 'reviews');
             if (!defined('WP_IMPORTING')) {
                 glsr(CountManager::class)->posts($postId);
@@ -35,13 +40,16 @@ class ReviewManager
         return Cast::toInt($result) > 0;
     }
 
+    /**
+     * Foreign indexes ensure that $termId is a valid Term ID.
+     */
     public function assignTerm(Review $review, int $termId): bool
     {
-        $where = [
+        $data = [
             'rating_id' => $review->rating_id,
             'term_id' => $termId,
         ];
-        if ($result = glsr(Database::class)->insert('assigned_terms', $where)) {
+        if ($result = glsr(Database::class)->insert('assigned_terms', $data)) {
             glsr(Cache::class)->delete($review->ID, 'reviews');
             if (!defined('WP_IMPORTING')) {
                 glsr(CountManager::class)->terms($termId);
@@ -50,13 +58,16 @@ class ReviewManager
         return Cast::toInt($result) > 0;
     }
 
+    /**
+     * Foreign indexes ensure that $userId is a valid User ID.
+     */
     public function assignUser(Review $review, int $userId): bool
     {
-        $where = [
+        $data = [
             'rating_id' => $review->rating_id,
             'user_id' => $userId,
         ];
-        if ($result = glsr(Database::class)->insert('assigned_users', $where)) {
+        if ($result = glsr(Database::class)->insert('assigned_users', $data)) {
             glsr(Cache::class)->delete($review->ID, 'reviews');
             if (!defined('WP_IMPORTING')) {
                 glsr(CountManager::class)->users($userId);
@@ -79,7 +90,7 @@ class ReviewManager
         $review = $this->get($postId);
         if ($review->isValid()) {
             glsr()->action('review/created', $review, $command);
-            return $this->get($review->ID); // return a fresh copy of the review
+            return $review->refresh();
         }
         return false;
     }
@@ -103,7 +114,7 @@ class ReviewManager
     public function createRaw(CreateReview $command)
     {
         $values = glsr()->args($command->toArray()); // this filters the values
-        $submitted = $command->request->toArray();
+        $submitted = $this->submittedMeta($command->request);
         $metaInput = [
             '_submitted' => $submitted, // save the original submitted request in metadata
             '_submitted_hash' => md5(maybe_serialize($submitted)),
@@ -150,6 +161,33 @@ class ReviewManager
         }
     }
 
+    /**
+     * @return Review|false
+     */
+    public function duplicate(int $reviewId)
+    {
+        if (!Review::isReview($reviewId)) {
+            return false;
+        }
+        $review = glsr_get_review($reviewId);
+        if (!$review->isValid()) {
+            return false;
+        }
+        $data = $review->toArray();
+        $data['author_id'] = get_current_user_id();
+        $data['is_approved'] = $data['is_approved'] && glsr()->can('publish_posts');
+        if (!$duplicate = glsr_create_review($data)) {
+            return false;
+        }
+        foreach ($review->meta() as $key => $value) {
+            if (!str_starts_with($key, '_submitted')) {
+                update_post_meta($duplicate->ID, $key, $value);
+            }
+        }
+        glsr(PostMeta::class)->set($duplicate->ID, 'duplicated_from', $review->ID);
+        return $duplicate;
+    }
+
     public function get(int $reviewId, bool $bypassCache = false): Review
     {
         return glsr(Query::class)->review($reviewId, $bypassCache);
@@ -163,6 +201,25 @@ class ReviewManager
         $reviews = new Reviews($results, $total, $args);
         glsr()->action('get/reviews', $reviews, $args);
         return $reviews;
+    }
+
+    public function submittedMeta(Request $request): array
+    {
+        $excludedKeys = [
+            '_action',
+            '_ajax_request',
+            '_frcaptcha',
+            '_hcaptcha',
+            '_nonce',
+            '_procaptcha',
+            '_recaptcha',
+            '_referer',
+            '_turnstile',
+            'form_id',
+            'form_signature',
+        ];
+        $submitted = $request->toArray($excludedKeys);
+        return array_filter($submitted, fn ($value) => !Helper::isEmpty($value));
     }
 
     public function total(array $args = [], array $reviews = []): int
@@ -241,7 +298,7 @@ class ReviewManager
             $assignedUsers = glsr(Sanitizer::class)->sanitizeUserIds($data['assigned_users']);
             glsr()->action('review/updated/user_ids', $review, $assignedUsers); // triggers a recount of assigned posts
         }
-        $review = $this->get($reviewId); // get a fresh copy of the review
+        $review->refresh();
         glsr()->action('review/updated', $review, $data, $oldPost);
         return $review;
     }
@@ -255,21 +312,21 @@ class ReviewManager
         return Cast::toInt($result) > 0;
     }
 
-    public function updateCustom(int $reviewId, array $data = []): void
+    public function updateCustom(int $reviewId, array $values = []): void
     {
-        $data = glsr(CustomFieldsDefaults::class)->merge($data);
+        $data = glsr(CustomFieldsDefaults::class)->merge($values);
         $data = Arr::prefixKeys($data, 'custom_');
         foreach ($data as $metaKey => $metaValue) {
-            glsr(Database::class)->metaSet($reviewId, $metaKey, $metaValue);
+            glsr(PostMeta::class)->set($reviewId, $metaKey, $metaValue);
         }
     }
 
-    public function updateRating(int $reviewId, array $data = []): int
+    public function updateRating(int $reviewId, array $values = []): int
     {
         $review = $this->get($reviewId);
         glsr(Cache::class)->delete($reviewId, 'reviews');
-        $sanitized = glsr(RatingDefaults::class)->restrict($data);
-        $data = array_intersect_key($sanitized, $data);
+        $sanitized = glsr(RatingDefaults::class)->restrict($values);
+        $data = array_intersect_key($sanitized, $values);
         if (empty($data)) {
             return 0;
         }
@@ -286,36 +343,35 @@ class ReviewManager
         return Cast::toInt($result);
     }
 
-    public function updateResponse(int $reviewId, array $data): int
+    public function updateResponse(int $reviewId, array $values): int
     {
-        if (!array_key_exists('response', $data)) {
+        if (!array_key_exists('response', $values)) {
             return 0;
         }
-        $response = Arr::get($data, 'response');
-        $response = Cast::toString($response);
+        $response = Arr::getAs('string', $values, 'response');
         $response = glsr(Sanitizer::class)->sanitizeTextHtml($response);
         $review = glsr_get_review($reviewId);
         if (empty($response) && empty($review->response)) {
             return 0;
         }
-        glsr(Database::class)->metaSet($review->ID, 'response', $response); // prefixed metakey
+        glsr(PostMeta::class)->set($review->ID, 'response', $response); // prefixed metakey
         // This should run immediately after saving the response
         // but before adding the "response_by" meta_value!
         glsr()->action('review/responded', $review, $response);
-        glsr(Database::class)->metaSet($review->ID, 'response_by', get_current_user_id()); // prefixed metakey
+        glsr(PostMeta::class)->set($review->ID, 'response_by', get_current_user_id()); // prefixed metakey
         glsr(Cache::class)->delete($review->ID, 'reviews');
         return 1;
     }
 
-    public function updateReview(int $reviewId, array $data = []): int
+    public function updateReview(int $reviewId, array $values = []): int
     {
         if (glsr()->post_type !== get_post_type($reviewId)) {
             glsr_log()->error("Review update failed: Post ID [{$reviewId}] is not a review.");
             return -1;
         }
         glsr(Cache::class)->delete($reviewId, 'reviews');
-        $sanitized = glsr(UpdateReviewDefaults::class)->restrict($data);
-        if ($data = array_intersect_key($sanitized, $data)) {
+        $sanitized = glsr(UpdateReviewDefaults::class)->restrict($values);
+        if ($data = array_intersect_key($sanitized, $values)) {
             $data = array_filter([
                 'post_content' => Arr::get($data, 'content'),
                 'post_date' => Arr::get($data, 'date'),

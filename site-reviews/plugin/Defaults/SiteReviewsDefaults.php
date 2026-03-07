@@ -3,6 +3,7 @@
 namespace GeminiLabs\SiteReviews\Defaults;
 
 use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Modules\Rating;
 
 class SiteReviewsDefaults extends DefaultsAbstract
 {
@@ -15,6 +16,7 @@ class SiteReviewsDefaults extends DefaultsAbstract
         'pagination' => 'string',
         'schema' => 'bool',
         'terms' => 'string',
+        'verified' => 'string',
     ];
 
     /**
@@ -24,6 +26,7 @@ class SiteReviewsDefaults extends DefaultsAbstract
     public array $enums = [
         'pagination' => ['ajax', 'loadmore', '1', 'true'],
         'terms' => ['0', 'false', '1', 'true'],
+        'verified' => ['0', 'false', '1', 'true'],
     ];
 
     /**
@@ -32,7 +35,7 @@ class SiteReviewsDefaults extends DefaultsAbstract
      * @var string[]
      */
     public array $guarded = [
-        'fallback', 'title',
+        'fallback',
     ];
 
     /**
@@ -43,7 +46,7 @@ class SiteReviewsDefaults extends DefaultsAbstract
     public array $mapped = [
         'assigned_to' => 'assigned_posts',
         'category' => 'assigned_terms',
-        'count' => 'display', // @deprecated in v4.1.0
+        'className' => 'class',
         'per_page' => 'display',
         'user' => 'assigned_users',
     ];
@@ -53,16 +56,16 @@ class SiteReviewsDefaults extends DefaultsAbstract
      * This is done after $casts and before $enums.
      */
     public array $sanitize = [
+        'author' => 'user-id',
         'class' => 'attr-class',
         'display' => 'min:1',
         'fallback' => 'text-post',
         'hide' => 'array-string',
-        'id' => 'id-hash',
+        'id' => 'id-unique',
         'offset' => 'min:0',
         'page' => 'min:1',
         'rating' => 'rating',
         'rating_field' => 'name',
-        'title' => 'text',
         'type' => 'slug',
     ];
 
@@ -72,6 +75,7 @@ class SiteReviewsDefaults extends DefaultsAbstract
             'assigned_posts' => '',
             'assigned_terms' => '',
             'assigned_users' => '',
+            'author' => 0,
             'class' => '',
             'display' => 5,
             'debug' => false,
@@ -81,12 +85,12 @@ class SiteReviewsDefaults extends DefaultsAbstract
             'offset' => 0,
             'page' => 1,
             'pagination' => '',
-            'rating' => 0,
+            'rating' => Rating::min(),
             'rating_field' => 'rating', // used for custom rating fields
             'schema' => false,
             'terms' => '',
-            'title' => '',
-            'type' => 'local',
+            'type' => '',
+            'verified' => '',
         ];
     }
 
@@ -96,7 +100,7 @@ class SiteReviewsDefaults extends DefaultsAbstract
     protected function normalize(array $values = []): array
     {
         foreach ($this->mapped as $old => $new) {
-            if ('custom' === Arr::get($values, $old)) {
+            if ('custom' === Arr::get($values, $old)) { // @todo is this deprecated??
                 $values[$old] = Arr::get($values, $new);
             }
         }

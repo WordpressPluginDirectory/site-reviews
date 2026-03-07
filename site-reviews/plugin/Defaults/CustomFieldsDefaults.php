@@ -3,6 +3,7 @@
 namespace GeminiLabs\SiteReviews\Defaults;
 
 use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Modules\Honeypot;
 
 class CustomFieldsDefaults extends DefaultsAbstract
@@ -18,10 +19,13 @@ class CustomFieldsDefaults extends DefaultsAbstract
         '_frcaptcha',
         '_hcaptcha',
         '_nonce',
+        '_pagination_atts',
         '_post_id',
         '_procaptcha',
         '_recaptcha',
         '_referer',
+        '_reviews_atts',
+        '_summary_atts',
         '_turnstile',
         'assigned_posts',
         'assigned_terms',
@@ -44,12 +48,9 @@ class CustomFieldsDefaults extends DefaultsAbstract
         'is_modified',
         'is_pinned',
         'is_verified',
-        'language',
         'name',
         'rating',
         'rating_id',
-        'response',
-        'response_by',
         'review_id',
         'score',
         'status',
@@ -58,9 +59,6 @@ class CustomFieldsDefaults extends DefaultsAbstract
         'title',
         'type',
         'url',
-        'verified',
-        'verified_on',
-        'verified_requested',
     ];
 
     /**
@@ -68,7 +66,16 @@ class CustomFieldsDefaults extends DefaultsAbstract
      */
     protected function normalize(array $values = []): array
     {
-        $this->guarded[] = glsr(Honeypot::class)->hash(Arr::get($values, 'form_id'));
+        $additionalFieldKeys = array_keys(glsr(AdditionalFieldsDefaults::class)->call('defaults'));
+        $geolocationKeys = array_keys(Arr::prefixKeys(glsr(StatDefaults::class)->call('defaults'), 'geolocation_'));
+        $formIdAttr = Cast::toString($values['form_id'] ?? '');
+        $guarded = array_merge(
+            $this->guarded,
+            [glsr(Honeypot::class)->hash($formIdAttr)],
+            $additionalFieldKeys,
+            $geolocationKeys,
+        );
+        $this->guarded = array_values(array_filter(array_unique($guarded)));
         $this->sanitize = array_fill_keys(array_keys($this->guard($values)), 'text');
         return $values;
     }

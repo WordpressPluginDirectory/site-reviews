@@ -1,5 +1,8 @@
-<?php defined('WPINC') || exit; ?>
-
+<?php defined('ABSPATH') || exit;
+/**
+ * @version 1.0.0
+ */
+?>
 <ul class="product_list_widget">
     <?php foreach ($reviews as $review) { ?>
         <li>
@@ -8,11 +11,11 @@
                 <?php echo $review->product()->get_image(); ?>
                 <span class="product-title"><?php echo $review->product()->get_name(); ?></span>
             </a>
-            <div class="<?php echo esc_attr($style); ?> glsrw-loop-rating">
+            <div class="<?php echo esc_attr($class); ?> glsrw-loop-rating">
                 <?php echo glsr_star_rating($review->rating, 0, ['theme' => $theme]); ?>
             </div>
             <span class="reviewer">
-                <?php echo sprintf(esc_html__('by %s', 'woocommerce'), $review->author); ?>
+                <?php echo sprintf(esc_html__('by %s', 'site-reviews'), $review->author); ?>
             </span>
             <?php do_action('woocommerce_widget_product_review_item_end', $args); ?>
         </li>

@@ -58,10 +58,11 @@ class Controller extends AbstractController
     {
         if ($this->isGamiPressPage()) {
             $handle = glsr()->id.'/admin/gamipress';
-            $url = glsr()->url('assets/scripts/gamipress.js');
-            wp_enqueue_script($handle, $url, [], glsr()->version, [
+            $url = glsr()->url('assets/scripts/integrations/gamipress.js');
+            wp_register_script($handle, $url, [], glsr()->version, [
                 'strategy' => 'defer',
             ]);
+            wp_enqueue_script($handle);
         }
     }
 
@@ -283,10 +284,7 @@ class Controller extends AbstractController
         $userId = Cast::toInt(get_post_meta($requirementId, $this->metaKey('user_id'), true));
         $rating = Cast::toInt(get_post_meta($requirementId, $this->metaKey('rating'), true));
         if ($user = get_user_by('id', $userId)) {
-            $name = glsr(Sanitizer::class)->sanitizeUserName(
-                $user->display_name,
-                $user->user_nicename
-            );
+            $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             $options[$user->ID] = sprintf('%s (#%d)', $name, $user->ID);
         }
         echo PHP_EOL.glsr(Builder::class)->select([

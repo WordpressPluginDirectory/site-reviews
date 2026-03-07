@@ -6,6 +6,7 @@ use GeminiLabs\SiteReviews\Api;
 use GeminiLabs\SiteReviews\Database\Cache;
 use GeminiLabs\SiteReviews\Database\Tables;
 use GeminiLabs\SiteReviews\Defaults\AddonDefaults;
+use GeminiLabs\SiteReviews\Defaults\FeatureDefaults;
 use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Str;
@@ -14,9 +15,21 @@ use GeminiLabs\SiteReviews\Modules\Console;
 use GeminiLabs\SiteReviews\Modules\Html\Builder;
 use GeminiLabs\SiteReviews\Modules\Html\SettingForm;
 use GeminiLabs\SiteReviews\Modules\Notice;
+use GeminiLabs\SiteReviews\Overrides\ScheduledActionsTable;
 
 class MenuController extends AbstractController
 {
+    /**
+     * This is necessary because the ActionScheduler table is rendered late
+     * after request headers have already be set which breaks redirects.
+     *
+     * @action load-site-review_page_glsr-tools
+     */
+    public function processPageActions(): void
+    {
+        glsr(ScheduledActionsTable::class)->process_actions();
+    }
+
     /**
      * @action admin_menu
      */
@@ -47,12 +60,15 @@ class MenuController extends AbstractController
      */
     public function registerSubMenus(): void
     {
+        global $submenu;
         $pages = $this->parseWithFilter('submenu/pages', [
             'settings' => _x('Settings', 'admin-text', 'site-reviews'),
             'tools' => _x('Tools', 'admin-text', 'site-reviews'),
-            'addons' => _x('Addons', 'admin-text', 'site-reviews'),
             'documentation' => _x('Help & Support', 'admin-text', 'site-reviews'),
+            'premium' => _x('Upgrade to Premium', 'admin-text', 'site-reviews'),
         ]);
+        $parentSlug = 'edit.php?post_type='.glsr()->post_type;
+        $slugPrefix = Str::dashCase(glsr()->prefix);
         foreach ($pages as $slug => $title) {
             $method = Helper::buildMethodName('render', $slug, 'menu', 'callback');
             if (!method_exists($this, $method)) {
@@ -62,7 +78,14 @@ class MenuController extends AbstractController
             if (!is_callable($callback)) {
                 continue;
             }
-            add_submenu_page('edit.php?post_type='.glsr()->post_type, $title, $title, glsr()->getPermission($slug), Str::dashCase(glsr()->prefix).$slug, $callback);
+            add_submenu_page($parentSlug, $title, $title, glsr()->getPermission($slug), $slugPrefix.$slug, $callback);
+        }
+        foreach ($submenu[$parentSlug] as $index => $menu) {
+            $slug = $menu[2] ?? '';
+            if (!str_starts_with($slug, $slugPrefix)) {
+                continue;
+            }
+            $submenu[$parentSlug][$index][4] = "submenu_{$slug}"; // add submenu class
         }
     }
 
@@ -86,23 +109,6 @@ class MenuController extends AbstractController
     /**
      * @see registerSubMenus
      */
-    public function renderAddonsMenuCallback(): void
-    {
-        $addons = [];
-        $data = glsr(Api::class)->get('addons')->data();
-        foreach ($data as $values) {
-            $context = glsr(AddonDefaults::class)->restrict($values);
-            $addons[] = array_merge($context, compact('context'));
-        }
-        $this->renderPage('addons', [
-            'addons' => $addons,
-            'is_premium' => glsr(License::class)->isPremium(),
-        ]);
-    }
-
-    /**
-     * @see registerSubMenus
-     */
     public function renderDocumentationMenuCallback(): void
     {
         $tabs = $this->parseWithFilter('documentation/tabs', [
@@ -112,6 +118,7 @@ class MenuController extends AbstractController
             'hooks' => _x('Hooks', 'admin-text', 'site-reviews'),
             'functions' => _x('Functions', 'admin-text', 'site-reviews'),
             'api' => _x('API', 'admin-text', 'site-reviews'),
+            'integrations' => _x('Integrations', 'admin-text', 'site-reviews'),
             'addons' => _x('Addons', 'admin-text', 'site-reviews'),
         ]);
         $addons = glsr()->filterArray('addon/documentation', []);
@@ -122,6 +129,40 @@ class MenuController extends AbstractController
         $this->renderPage('documentation', [
             'addons' => $addons,
             'tabs' => $tabs,
+        ]);
+    }
+
+    /**
+     * @see registerSubMenus
+     */
+    public function renderPremiumMenuCallback(): void
+    {
+        $addons = [];
+        $features = [];
+        $isPremium = glsr(License::class)->isPremium();
+        if ($isPremium) {
+            $data = glsr(Api::class)->get('addons')->data();
+            foreach ($data as $values) {
+                $context = glsr(AddonDefaults::class)->restrict($values);
+                $addons[] = array_merge($context, compact('context'));
+            }
+        } else {
+            $data = glsr(Api::class)->get('features')->data();
+            foreach ($data as $values) {
+                $features[] = glsr(FeatureDefaults::class)->restrict($values);
+            }
+            $feature = array_column($features, 'feature');
+            $premium = array_column($features, 'premium');
+            array_multisort(
+                $premium, \SORT_DESC,
+                $feature, \SORT_ASC | \SORT_NATURAL,
+                $features
+            );
+        }
+        $this->renderPage('premium', [
+            'addons' => $addons,
+            'features' => $features,
+            'is_premium' => $isPremium,
         ]);
     }
 
@@ -142,9 +183,6 @@ class MenuController extends AbstractController
         ]);
         if (empty(Arr::get(glsr()->defaults(), 'settings.addons'))) {
             unset($tabs['addons']);
-        }
-        if (empty(Arr::get(glsr()->defaults(), 'settings.licenses'))) {
-            unset($tabs['licenses']);
         }
         $this->renderPage('settings', [
             'fields' => glsr(SettingForm::class, ['groups' => $tabs])->build(),
@@ -210,6 +248,8 @@ class MenuController extends AbstractController
                     unset($args[$tab]);
                 }
             }
+        } elseif (array_key_exists('premium', $args) && glsr(License::class)->isPremium()) {
+            $args['premium'] = _x('Addons', 'admin-text', 'site-reviews');
         }
         return glsr()->filterArray("addon/{$hookSuffix}", $args);
     }

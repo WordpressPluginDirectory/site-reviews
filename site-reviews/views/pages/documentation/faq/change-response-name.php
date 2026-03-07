@@ -8,7 +8,7 @@
         </button>
     </h3>
     <div id="faq-change-response-name" class="inside">
-        <p>The easiest way to do this is to use the <code><a href="<?php echo glsr_admin_url('settings', 'strings'); ?>">Settings &rarr; Strings</a></code> page to change the <code><?php echo __('Response from %s', 'site-reviews'); ?></code> text.</p>
+        <p>The easiest way to do this is to use the <?php echo glsr_admin_link('settings.strings'); ?> page to change the <code><?php echo __('Response from %s', 'site-reviews'); ?></code> text.</p>
         <p>However, if you need further customisation then you can use a hook to change the name like this:</p>
         <pre><code class="language-php">/**
  * @param string $responseBy
@@ -19,7 +19,7 @@ add_filter('site-reviews/review/build/tag/response/by', function ($responseBy, $
     // Option 1:
     // The user ID of the person who wrote the response is stored to the review,
     // so you can get their name like this:
-    if ($user = get_userdata($review->meta()->_response_by)) {
+    if ($user = get_user_by('id', $review->meta()->_response_by)) {
         $responseBy = $user->display_name;
     }
     // Option 2:

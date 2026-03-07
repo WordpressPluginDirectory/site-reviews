@@ -143,6 +143,9 @@ class Router implements ControllerContract
         }
     }
 
+    /**
+     * @todo: what happens if the IP address cannot be detected?
+     */
     protected function isValidMutexRequest(Request $request): bool
     {
         if (defined('GLSR_UNIT_TESTS')) {
@@ -151,7 +154,7 @@ class Router implements ControllerContract
         if (!in_array($request->_action, $this->mutexActions())) {
             return true;
         }
-        $ipAddress = Helper::getIpAddress();
+        $ipAddress = Helper::clientIp();
         $hash = Str::hash($ipAddress, 13);
         $lock = Str::prefix($hash, glsr()->prefix);
         if (get_transient($lock)) {
@@ -234,6 +237,7 @@ class Router implements ControllerContract
     protected function unguardedPublicActions(): array
     {
         return glsr()->filterArray('router/public/unguarded-actions', [
+            'approved-review',
             'fetch-paged-reviews',
             'submit-review',
             'verified-review',

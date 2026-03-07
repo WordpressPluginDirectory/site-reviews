@@ -14,6 +14,7 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
         'debug' => 'bool',
         'schema' => 'bool',
         'terms' => 'string',
+        'verified' => 'string',
     ];
 
     /**
@@ -22,6 +23,7 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
      */
     public array $enums = [
         'terms' => ['0', 'false', '1', 'true'],
+        'verified' => ['0', 'false', '1', 'true'],
     ];
 
     /**
@@ -30,7 +32,7 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
      * @var string[]
      */
     public array $guarded = [
-        'labels', 'text', 'title',
+        'labels', 'text',
     ];
 
     /**
@@ -41,6 +43,7 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
     public array $mapped = [
         'assigned_to' => 'assigned_posts',
         'category' => 'assigned_terms',
+        'className' => 'class',
         'user' => 'assigned_users',
     ];
 
@@ -49,14 +52,14 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
      * This is done after $casts and before $enums.
      */
     public array $sanitize = [
+        'author' => 'user-id',
         'class' => 'attr-class',
         'hide' => 'array-string',
-        'id' => 'id-hash',
+        'id' => 'id-unique',
         'labels' => 'text',
         'rating' => 'rating',
         'rating_field' => 'name',
         'text' => 'text-html:a',
-        'title' => 'text',
         'type' => 'slug',
     ];
 
@@ -66,6 +69,7 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
             'assigned_posts' => '',
             'assigned_terms' => '',
             'assigned_users' => '',
+            'author' => 0,
             'class' => '',
             'debug' => false,
             'hide' => '',
@@ -76,9 +80,18 @@ class SiteReviewsSummaryDefaults extends DefaultsAbstract
             'schema' => false,
             'terms' => '',
             'text' => '',
-            'title' => '',
-            'type' => 'local',
+            'type' => '',
+            'verified' => '',
         ];
+    }
+
+    /**
+     * Finalize provided values, this always runs last.
+     */
+    protected function finalize(array $values = []): array
+    {
+        $values['rating'] = max(1, $values['rating']);
+        return $values;
     }
 
     /**

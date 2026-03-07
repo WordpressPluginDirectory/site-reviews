@@ -19,6 +19,16 @@ class SiteReviewsFormShortcode extends Shortcode
         return $form->build();
     }
 
+    public function description(): string
+    {
+        return esc_html_x('Display a review form', 'admin-text', 'site-reviews');
+    }
+
+    public function enqueue(): void
+    {
+        wp_enqueue_style('site-reviews-form-style');
+    }
+
     /**
      * @param string $url
      * @param string $redirect
@@ -84,6 +94,11 @@ class SiteReviewsFormShortcode extends Shortcode
         return $url;
     }
 
+    public function name(): string
+    {
+        return esc_html_x('Review Form', 'admin-text', 'site-reviews');
+    }
+
     public function registerLink(): string
     {
         $registerUrl = $this->registerUrl();
@@ -105,6 +120,62 @@ class SiteReviewsFormShortcode extends Shortcode
         $url = wp_registration_url();
         remove_filter('register_url', [$this, 'filterRegisterUrl'], 20);
         return $url;
+    }
+
+    protected function config(): array
+    {
+        return [ // order is intentional
+            'assigned_posts' => [
+                'group' => 'general',
+                'label' => esc_html_x('Assign Reviews to Pages', 'admin-text', 'site-reviews'),
+                'multiple' => true,
+                'placeholder' => esc_html_x('Select a Page...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'assigned_terms' => [
+                'group' => 'general',
+                'label' => esc_html_x('Assign Reviews to Categories', 'admin-text', 'site-reviews'),
+                'multiple' => true,
+                'placeholder' => esc_html_x('Select a Category...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'assigned_users' => [
+                'group' => 'general',
+                'label' => esc_html_x('Assign Reviews to Users', 'admin-text', 'site-reviews'),
+                'multiple' => true,
+                'placeholder' => esc_html_x('Select a User...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'hide' => [
+                'group' => 'hide',
+                'options' => $this->options('hide'),
+                'type' => 'checkbox',
+            ],
+            'reviews_id' => [
+                'description' => esc_html_x('Enter the Custom ID of a Latest Reviews block or shortcode where the review should be displayed after submission.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Latest Reviews ID', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'summary_id' => [
+                'description' => esc_html_x('Enter the Custom ID of a Rating Summary block or shortcode where the rating values should be updated after submission.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Rating Summary ID', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'id' => [
+                'description' => esc_html_x('This should be a unique value.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Custom ID', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'class' => [
+                'description' => esc_html_x('Separate multiple classes with spaces.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Additional CSS classes', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+        ];
     }
 
     protected function debug(array $data = []): void

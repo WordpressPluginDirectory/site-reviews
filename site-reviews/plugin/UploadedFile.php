@@ -23,7 +23,7 @@ class UploadedFile extends \SplFileInfo
         $this->mimeType = $data['type'] ?: 'application/octet-stream';
         $this->originalName = $this->getName($data['name']);
         $this->size = $data['size'];
-        if (\UPLOAD_ERR_OK !== $this->error && !is_file($data['tmp_name'])) {
+        if (\UPLOAD_ERR_OK === $this->error && !is_file($data['tmp_name'])) {
             throw new FileNotFoundException($data['tmp_name']);
         }
         parent::__construct($data['tmp_name']);
@@ -70,9 +70,9 @@ class UploadedFile extends \SplFileInfo
      */
     public function getContent(): string
     {
-        $content = file_get_contents($this->getPathname());
-        if (false === $content) {
-            throw new FileException(sprintf('Could not get the content of the file "%s".', $this->getPathname()));
+        $content = '';
+        foreach ($this->streamContent() as $chunk) {
+            $content .= $chunk;
         }
         return $content;
     }
@@ -88,6 +88,9 @@ class UploadedFile extends \SplFileInfo
 
     public function getErrorMessage(): string
     {
+        if (\UPLOAD_ERR_OK === $this->error) {
+            return '';
+        }
         $errors = [
             \UPLOAD_ERR_INI_SIZE => _x('The file "%s" exceeds the upload_max_filesize ini directive (limit is %d KiB).', 'file error (admin-text)', 'site-reviews'),
             \UPLOAD_ERR_FORM_SIZE => _x('The file "%s" exceeds the upload limit defined in your form.', 'file error (admin-text)', 'site-reviews'),
@@ -109,14 +112,23 @@ class UploadedFile extends \SplFileInfo
             'json' => 'application/json',
         ]);
         $extensions = explode('|', array_search($this->getMimeType(), $mimetypes, true));
-        return $extensions[0] ?? $this->getExtension() ?? $this->getClientOriginalExtension();
+        return $extensions[0] ?? $this->getExtension() ?: $this->getClientOriginalExtension();
     }
 
     /**
      * This should not be considered a safe value.
+     * 1. Examine the file content for the MIME type.
+     * 2. Fallback to mime_content_type if Fileinfo fails or isn't available.
+     * 3. Fallback to client-provided MIME type.
      */
     public function getMimeType(): string
     {
+        if (extension_loaded('fileinfo')) {
+            $finfo = new \finfo(\FILEINFO_MIME_TYPE);
+            if ($mimeType = $finfo->file($this->getPathname())) {
+                return $mimeType;
+            }
+        }
         if (function_exists('mime_content_type')) {
             if ($mimeType = mime_content_type($this->getPathname())) {
                 return $mimeType;
@@ -132,8 +144,13 @@ class UploadedFile extends \SplFileInfo
     public function hasMimeType(string $mimeType): bool
     {
         $detectedMimeType = $this->getMimeType();
-        if ('text/csv' === $mimeType && 'application/vnd.ms-excel' === $detectedMimeType) {
-            return 'csv' === ($this->getExtension() ?? $this->getClientOriginalExtension());
+        $csvMimeTypes = [
+            'application/csv',
+            'application/vnd.ms-excel',
+            'text/csv',
+        ];
+        if ('text/csv' === $mimeType && in_array($detectedMimeType, $csvMimeTypes)) {
+            return 'csv' === ($this->getExtension() ?: $this->getClientOriginalExtension());
         }
         $inconclusiveMimeTypes = [
             'application/octet-stream',
@@ -153,6 +170,22 @@ class UploadedFile extends \SplFileInfo
     {
         $isOk = \UPLOAD_ERR_OK === $this->error;
         return $isOk && is_uploaded_file($this->getPathname());
+    }
+
+    /**
+     * @throws FileException
+     * @return \Generator<string>
+     */
+    public function streamContent(int $chunkSize = 8192): \Generator
+    {
+        $file = new \SplFileObject($this->getPathname(), 'r');
+        while (!$file->eof()) {
+            $chunk = $file->fread($chunkSize); // 8KB by default
+            if ($chunk === false) {
+                throw new FileException(sprintf('Could not stream the contents of "%s".', $this->getPathname()));
+            }
+            yield $chunk;
+        }
     }
 
     /**

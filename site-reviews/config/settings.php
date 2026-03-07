@@ -18,6 +18,7 @@ return [ // order is intentional
     'settings.general.style' => [
         'class' => 'regular-text',
         'default' => 'default',
+        'description' => _x('This will change the style of the review form to match popular themes and plugins.', 'admin-text', 'site-reviews'),
         'label' => _x('Plugin Style', 'admin-text', 'site-reviews'),
         'options' => [
             _x('Styles', 'admin-text', 'site-reviews') => [
@@ -25,6 +26,7 @@ return [ // order is intentional
                 'minimal' => _x('Site Reviews (minimal)', 'admin-text', 'site-reviews'),
             ],
             _x('Plugins', 'admin-text', 'site-reviews') => [
+                'breakdance' => _x('Breakdance (v2)', 'admin-text', 'site-reviews'),
                 'contact_form_7' => _x('Contact Form 7 (v5)', 'admin-text', 'site-reviews'),
                 'elementor' => _x('Elementor Pro (v3)', 'admin-text', 'site-reviews'),
                 'ninja_forms' => _x('Ninja Forms (v3)', 'admin-text', 'site-reviews'),
@@ -55,17 +57,19 @@ return [ // order is intentional
         'type' => 'yes_no',
     ],
     'settings.general.request_verification_message' => [
+        'autosize' => true,
         'default' => glsr()->build('templates/verify-review'),
         'depends_on' => [
             'settings.general.request_verification' => ['yes'],
         ],
+        'description' => _x('To restore the default text, save an empty template.', 'admin-text', 'site-reviews'),
         'label' => _x('Verification Template', 'admin-text', 'site-reviews'),
-        'rows' => 8,
+        'rows' => 3,
         'sanitizer' => 'text-html',
         'tags' => glsr('Modules\Html\TemplateTags')->filteredTags([
-            'exclude' => ['admin_email', 'approve_url', 'edit_url', 'review_link', 'verified_date'],
+            'exclude' => ['admin_email', 'approve_url', 'edit_url', 'review_link', 'review_type', 'verified_date'],
         ]),
-        'tooltip' => _x('The verification email sent to the reviewer when a review is submitted. To restore the default text, save an empty template.', 'admin-text', 'site-reviews'),
+        'tooltip' => _x('The verification email sent to the reviewer when a review is submitted.', 'admin-text', 'site-reviews'),
         'type' => 'code',
     ],
     'settings.general.require.approval' => [
@@ -83,6 +87,7 @@ return [ // order is intentional
         ],
         'label' => _x('Require Approval For', 'admin-text', 'site-reviews'),
         'tooltip' => _x('The minimum rating that will change the status of a new review submission to "unapproved".', 'admin-text', 'site-reviews'),
+        /* translators: %s is replaced with the rating number */
         'options' => glsr('Modules\Rating')->optionsArray(_n_noop('%s star or less', '%s stars or less', 'site-reviews')),
         'sanitizer' => 'rating',
         'type' => 'select',
@@ -95,6 +100,7 @@ return [ // order is intentional
         'type' => 'yes_no',
     ],
     'settings.general.require.login_url' => [
+        'class' => 'large-text',
         'default' => '',
         'depends_on' => [
             'settings.general.require.login' => 'yes',
@@ -102,6 +108,7 @@ return [ // order is intentional
         'label' => _x('Custom Login URL', 'admin-text', 'site-reviews'),
         'placeholder' => wp_login_url(),
         'sanitizer' => 'url',
+        /* translators: %s is replaced with a link to the "wp_login_url" function documentation */
         'tooltip' => sprintf(_x('Site Reviews uses the %s function to get the login URL. If you would like to use a custom login URL, enter it here.', 'admin-text', 'site-reviews'),
             '<a href="http://developer.wordpress.org/reference/functions/wp_login_url/" target="_blank">wp_login_url()</a>'
         ),
@@ -114,12 +121,14 @@ return [ // order is intentional
         ],
         'label' => _x('Show Registration Link', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
+        /* translators: %s is replaced with a link to the "Anyone can register" setting in the WordPress General settings */
         'tooltip' => sprintf(_x('Show a link for a new user to register. The %s Membership option must be enabled in General Settings for this to work.', 'admin-text', 'site-reviews'),
             '<a href="'.admin_url('options-general.php#users_can_register').'">'._x('Anyone can register', 'admin-text', 'site-reviews').'</a>'
         ),
         'type' => 'yes_no',
     ],
     'settings.general.require.register_url' => [
+        'class' => 'large-text',
         'default' => '',
         'depends_on' => [
             'settings.general.require.login' => 'yes',
@@ -128,6 +137,7 @@ return [ // order is intentional
         'label' => _x('Custom Registration URL', 'admin-text', 'site-reviews'),
         'placeholder' => wp_registration_url(),
         'sanitizer' => 'url',
+        /* translators: %s is replaced with a link to the "wp_registration_url" function documentation */
         'tooltip' => sprintf(_x('Site Reviews uses the %s function to get the registration URL. If you would like to use a custom registration URL, enter it here.', 'admin-text', 'site-reviews'),
             '<a href="http://developer.wordpress.org/reference/functions/wp_registration_url/" target="_blank">wp_registration_url()</a>'
         ),
@@ -162,24 +172,28 @@ return [ // order is intentional
         'type' => 'checkbox',
     ],
     'settings.general.notification_discord' => [
+        'class' => 'large-text',
         'default' => '',
         'depends_on' => [
             'settings.general.notifications' => ['discord'],
         ],
         'label' => _x('Discord Webhook URL', 'admin-text', 'site-reviews'),
         'sanitizer' => 'url',
+        /* translators: %s is replaced with a link to the "create a webhook" Discord support URL */
         'tooltip' => sprintf(_x('To send notifications to a Discord channel, %s and then paste the URL in the field.', 'admin-text', 'site-reviews'),
             '<a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank">'._x('create a webhook', 'admin-text', 'site-reviews').'</a>'
         ),
         'type' => 'secret',
     ],
     'settings.general.notification_slack' => [
+        'class' => 'large-text',
         'default' => '',
         'depends_on' => [
             'settings.general.notifications' => ['slack'],
         ],
         'label' => _x('Slack Webhook URL', 'admin-text', 'site-reviews'),
         'sanitizer' => 'url',
+        /* translators: %s is replaced with a link to the "create an Incoming Webhook" Slack support URL */
         'tooltip' => sprintf(_x('To send notifications to a Slack channel, %s and then paste the URL in the field.', 'admin-text', 'site-reviews'),
             '<a href="https://api.slack.com/incoming-webhooks" target="_blank">'._x('create an Incoming Webhook', 'admin-text', 'site-reviews').'</a>'
         ),
@@ -208,17 +222,19 @@ return [ // order is intentional
         'type' => 'text',
     ],
     'settings.general.notification_message' => [
+        'autosize' => true,
         'default' => glsr()->build('templates/notification'),
         'depends_on' => [
             'settings.general.notifications' => ['admin', 'author', 'custom'],
         ],
+        'description' => _x('To restore the default text, save an empty template.', 'admin-text', 'site-reviews'),
         'label' => _x('Notification Template', 'admin-text', 'site-reviews'),
-        'rows' => 9,
+        'rows' => 3,
         'sanitizer' => 'text-html',
         'tags' => glsr('Modules\Html\TemplateTags')->filteredTags([
-            'exclude' => ['admin_email', 'review_link', 'verified_date', 'verify_url'],
+            'exclude' => ['admin_email', 'review_link', 'review_type', 'verified_date', 'verify_url'],
         ]),
-        'tooltip' => _x('To restore the default text, save an empty template. If you are sending notifications to Slack then this template will only be used as a fallback in the event that <a href="https://api.slack.com/docs/attachments" target="_blank">Message Attachments</a> have been disabled.', 'admin-text', 'site-reviews'),
+        'tooltip' => _x('If you are sending notifications to Slack then this template will only be used as a fallback in the event that <a href="https://api.slack.com/docs/attachments" target="_blank">Message Attachments</a> have been disabled.', 'admin-text', 'site-reviews'),
         'type' => 'code',
     ],
     'settings.reviews.date.format' => [
@@ -231,6 +247,7 @@ return [ // order is intentional
             'custom' => _x('Use a custom date format', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
+        /* translators: %s is replaced with a link to the date format option in the WordPress settings */
         'tooltip' => sprintf(_x('The default date format is the one set in your %s.', 'admin-text', 'site-reviews'),
             '<a href="'.admin_url('options-general.php#date_format_custom').'">'._x('WordPress settings', 'admin-text', 'site-reviews').'</a>'
         ),
@@ -281,8 +298,8 @@ return [ // order is intentional
         'class' => 'regular-text',
         'default' => 'strict',
         'description' => sprintf('%s<br>%s',
-            _x('Loose Assignment displays reviews that are assigned to this <code>OR</code> that.', 'admin-text', 'site-reviews'),
-            _x('Strict Assignment displays reviews that are assigned to this <code>AND</code> that.', 'admin-text', 'site-reviews')
+            _x('Loose Assignment: display reviews assigned to the values of this option <code>OR</code> that option.', 'admin-text', 'site-reviews'),
+            _x('Strict Assignment: display reviews assigned to the values of this option <code>AND</code> that option.', 'admin-text', 'site-reviews'),
         ),
         'label' => _x('Review Assignment', 'admin-text', 'site-reviews'),
         'options' => [
@@ -290,18 +307,18 @@ return [ // order is intentional
             'strict' => _x('Strict Assignment (faster database queries)', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
-        'tooltip' => _x('This setting determines how the assigned options work in the reviews and summary shortcodes and blocks.', 'admin-text', 'site-reviews'),
+        'tooltip' => _x('This setting determines how the assignment options (<code>assigned_posts</code>, <code>assigned_terms</code>, and <code>assigned_users</code>) work together in the reviews and summary shortcodes and blocks.', 'admin-text', 'site-reviews'),
         'type' => 'select',
     ],
     'settings.reviews.assigned_links' => [
-        'default' => 'no',
+        'default' => 'yes',
         'label' => _x('Enable Assigned Links', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
         'tooltip' => _x('This will display a link to the assigned posts of a review.', 'admin-text', 'site-reviews'),
         'type' => 'yes_no',
     ],
     'settings.reviews.avatars' => [
-        'default' => 'no',
+        'default' => 'yes',
         'label' => _x('Enable Avatars', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
         'tooltip' => _x('The avatars are generated from the email address of the reviewer using <a href="https://gravatar.com" target="_blank">Gravatar</a>.', 'admin-text', 'site-reviews'),
@@ -309,7 +326,7 @@ return [ // order is intentional
     ],
     'settings.reviews.avatars_fallback' => [
         'class' => 'regular-text',
-        'default' => 'none',
+        'default' => 'initials',
         'depends_on' => [
             'settings.reviews.avatars' => 'yes',
         ],
@@ -331,6 +348,7 @@ return [ // order is intentional
         'type' => 'select',
     ],
     'settings.reviews.avatars_fallback_url' => [
+        'class' => 'large-text',
         'default' => '',
         'depends_on' => [
             'settings.reviews.avatars' => 'yes',
@@ -404,9 +422,37 @@ return [ // order is intentional
         'label' => _x('Enable Fallback Text', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
         'tooltip' => sprintf(_x('Display the fallback text when there are no reviews to display. This can be changed on the %s page. You may also override this by using the "fallback" option on the shortcode.', 'admin-text', 'site-reviews'),
-            '<a href="'.esc_url(glsr_admin_url('settings', 'strings')).'">'._x('Strings', 'admin-text', 'site-reviews').'</a>'
+            glsr_admin_link('settings.strings', _x('Strings', 'admin-text', 'site-reviews'))
         ),
         'type' => 'yes_no',
+    ],
+    'settings.reviews.geolocation' => [
+        'default' => 'no',
+        'label' => _x('Enable Geolocation', 'admin-text', 'site-reviews'),
+        'sanitizer' => 'text',
+        'tooltip' => _x('The geographic location is extracted from the IP address of the reviewer.', 'admin-text', 'site-reviews'),
+        'type' => 'yes_no',
+    ],
+    'settings.reviews.geolocation_format' => [
+        'class' => 'regular-text',
+        'default' => 'flag',
+        'depends_on' => [
+            'settings.reviews.geolocation' => 'yes',
+        ],
+        'description' => sprintf(_x('Use the %s tool to extract geolocation from existing reviews.', 'admin-text', 'site-reviews'),
+            glsr_admin_link('tools.general', _x('Geolocate Reviews', 'admin-text', 'site-reviews'), '#tools-geolocate-reviews')
+        ),
+        'label' => _x('Geolocation Format', 'admin-text', 'site-reviews'),
+        'options' => [
+            'flag' => _x('Display the flag', 'admin-text', 'site-reviews'),
+            'flag_country' => _x('Display the flag and country', 'admin-text', 'site-reviews'),
+            'flag_city_region' => _x('Display the flag, city, and region/state', 'admin-text', 'site-reviews'),
+            'country' => _x('Display the country', 'admin-text', 'site-reviews'),
+            'city_region' => _x('Display the city and region/state', 'admin-text', 'site-reviews'),
+        ],
+        'sanitizer' => 'text',
+        'tooltip' => _x('Choose how the geographic location of the reviewer is displayed in the review.', 'admin-text', 'site-reviews'),
+        'type' => 'select',
     ],
     'settings.reviews.pagination.url_parameter' => [
         'default' => 'yes',
@@ -434,6 +480,7 @@ return [ // order is intentional
             'saswp' => _x('Schema & Structured Data for WP & AMP', 'plugin name (admin-text)', 'site-reviews'),
             'schema_pro' => _x('Schema Pro', 'plugin name (admin-text)', 'site-reviews'),
             'seopress' => _x('SEOPress Pro', 'plugin name (admin-text)', 'site-reviews'),
+            'yoast_seo' => _x('Yoast SEO', 'plugin name (admin-text)', 'site-reviews'),
         ],
         'sanitizer' => 'text',
         'tooltip' => _x('Integrate Site Reviews with a third-party schema plugin?', 'admin-text', 'site-reviews'),
@@ -702,7 +749,20 @@ return [ // order is intentional
         ),
         'type' => 'text',
     ],
+    'settings.forms.autofill' => [
+        'default' => ['email', 'name'],
+        'description' => _x('Choose which fields should be autofilled with the details of the logged in user.', 'admin-text', 'site-reviews'),
+        'label' => _x('Autofill Fields', 'admin-text', 'site-reviews'),
+        'options' => [
+            'name' => _x('Name', 'admin-text', 'site-reviews'),
+            'email' => _x('Email', 'admin-text', 'site-reviews'),
+        ],
+        'sanitizer' => 'array-string',
+        'tooltip' => _x('Choose which fields should be autofilled with the details of the logged in user.', 'admin-text', 'site-reviews'),
+        'type' => 'checkbox',
+    ],
     'settings.forms.required' => [
+        'description' => _x('Choose which fields should be required (mandatory) instead of optional.', 'admin-text', 'site-reviews'),
         'default' => ['content', 'email', 'name', 'rating', 'terms', 'title'],
         'label' => _x('Required Fields', 'admin-text', 'site-reviews'),
         'options' => [
@@ -714,7 +774,7 @@ return [ // order is intentional
             'terms' => _x('Terms', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'array-string',
-        'tooltip' => _x('Choose which fields should be required in the review form.', 'admin-text', 'site-reviews'),
+        'tooltip' => _x('Choose which fields should be required (mandatory) instead of optional.', 'admin-text', 'site-reviews'),
         'type' => 'checkbox',
     ],
     'settings.forms.limit' => [
@@ -762,34 +822,37 @@ return [ // order is intentional
         'type' => 'checkbox',
     ],
     'settings.forms.limit_whitelist.email' => [
+        'autosize' => true,
         'default' => '',
         'depends_on' => [
             'settings.forms.limit' => ['email'],
         ],
         'label' => _x('Email Whitelist', 'admin-text', 'site-reviews'),
-        'rows' => 5,
+        'rows' => 3,
         'sanitizer' => 'text-multiline',
         'tooltip' => _x('One Email per line. All emails in the whitelist will be excluded from the review submission limit.', 'admin-text', 'site-reviews'),
         'type' => 'code',
     ],
     'settings.forms.limit_whitelist.ip_address' => [
+        'autosize' => true,
         'default' => '',
         'depends_on' => [
             'settings.forms.limit' => ['ip_address'],
         ],
         'label' => _x('IP Address Whitelist', 'admin-text', 'site-reviews'),
-        'rows' => 5,
+        'rows' => 3,
         'sanitizer' => 'text-multiline',
         'tooltip' => _x('One IP Address per line. All IP Addresses in the whitelist will be excluded from the review submission limit..', 'admin-text', 'site-reviews'),
         'type' => 'code',
     ],
     'settings.forms.limit_whitelist.username' => [
+        'autosize' => true,
         'default' => '',
         'depends_on' => [
             'settings.forms.limit' => ['username'],
         ],
         'label' => _x('Username Whitelist', 'admin-text', 'site-reviews'),
-        'rows' => 5,
+        'rows' => 3,
         'sanitizer' => 'text-multiline',
         'tooltip' => _x('One Username per line. All registered users with a Username in the whitelist will be excluded from the review submission limit.', 'admin-text', 'site-reviews'),
         'type' => 'code',
@@ -961,20 +1024,41 @@ return [ // order is intentional
         'tooltip' => _x('Turnstile is Cloudflare’s privacy-first CAPTCHA alternative. To use it, you will need to <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank">obtain</a> a site key and a secret key.', 'admin-text', 'site-reviews'),
         'type' => 'secret',
     ],
-    'settings.forms.captcha.position' => [
+    'settings.forms.captcha.badge' => [
         'class' => 'regular-text',
         'default' => 'bottomleft',
         'depends_on' => [
             'settings.forms.captcha.integration' => ['recaptcha_v2_invisible', 'recaptcha_v3'],
         ],
-        'label' => _x('CAPTCHA Badge', 'admin-text', 'site-reviews'),
+        'label' => _x('CAPTCHA Placement', 'admin-text', 'site-reviews'),
         'options' => [
+            'above' => _x('Above Submit Button', 'admin-text', 'site-reviews'),
+            'below' => _x('Below Submit Button', 'admin-text', 'site-reviews'),
             'bottomleft' => _x('Bottom Left', 'admin-text', 'site-reviews'),
             'bottomright' => _x('Bottom Right', 'admin-text', 'site-reviews'),
-            'inline' => _x('Inline', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
-        'tooltip' => _x('Set the position of the CAPTCHA widget. This option may not work consistently if another plugin is loading reCAPTCHA on the same page as Site Reviews.', 'admin-text', 'site-reviews'),
+        'tooltip' => _x('Set the position of the CAPTCHA badge. This option may not work consistently if another plugin is loading reCAPTCHA on the same page as Site Reviews.', 'admin-text', 'site-reviews'),
+        'type' => 'select',
+    ],
+    'settings.forms.captcha.placement' => [
+        'class' => 'regular-text',
+        'default' => 'below',
+        'depends_on' => [
+            'settings.forms.captcha.integration' => [
+                'friendlycaptcha',
+                'hcaptcha',
+                'procaptcha',
+                'turnstile',
+            ],
+        ],
+        'label' => _x('CAPTCHA Placement', 'admin-text', 'site-reviews'),
+        'options' => [
+            'above' => _x('Above Submit Button', 'admin-text', 'site-reviews'),
+            'below' => _x('Below Submit Button', 'admin-text', 'site-reviews'),
+        ],
+        'sanitizer' => 'text',
+        'tooltip' => _x('Set the placement of the CAPTCHA widget in the form.', 'admin-text', 'site-reviews'),
         'type' => 'select',
     ],
     'settings.forms.captcha.theme' => [
@@ -1051,12 +1135,13 @@ return [ // order is intentional
         'type' => 'select',
     ],
     'settings.forms.blacklist.entries' => [
+        'autosize' => true,
         'default' => '',
         'depends_on' => [
             'settings.forms.blacklist.integration' => [''],
         ],
         'label' => _x('Review Blacklist', 'admin-text', 'site-reviews'),
-        'rows' => 10,
+        'rows' => 3,
         'sanitizer' => 'text-multiline',
         'tooltip' => _x('One entry or IP address per line. When a review contains any of these entries in its title, content, name, email, or IP address, it will be rejected. It is case-insensitive and will match partial words, so "press" will match "WordPress".', 'admin-text', 'site-reviews'),
         'type' => 'code',
@@ -1072,5 +1157,12 @@ return [ // order is intentional
         'sanitizer' => 'text',
         'tooltip' => _x('Choose the action that should be taken when a review is blacklisted.', 'admin-text', 'site-reviews'),
         'type' => 'select',
+    ],
+    'settings.forms.session_storage' => [
+        'default' => 'no',
+        'label' => _x('Enable Session Storage', 'admin-text', 'site-reviews'),
+        'sanitizer' => 'text',
+        'tooltip' => _x('Enabling this option will persist field values entered into the review form until either the review is submitted or the browser tab or window is closed.', 'admin-text', 'site-reviews'),
+        'type' => 'yes_no',
     ],
 ];

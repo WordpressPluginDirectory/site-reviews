@@ -41,12 +41,14 @@ class StarRatingDefaults extends DefaultsAbstract
      */
     protected function finalize(array $values = []): array
     {
+        $max = Rating::max();
         $rating = $values['rating'] ?? 0;
         $reviews = $values['reviews'] ?? 0;
-        $maxRating = glsr()->constant('MAX_RATING', Rating::class);
-        $numFull = intval(floor($rating));
+        $remainder = round($rating - floor($rating), 1); // round for reliable floating-point comparison
+        $numFull = intval($remainder >= 0.9 ? ceil($rating) : floor($rating));
         $numHalf = intval(ceil($rating - $numFull));
-        $numEmpty = max(0, $maxRating - $numFull - $numHalf);
+        $numEmpty = max(0, $max - $numFull - $numHalf);
+        $values['max_rating'] = $max;
         $values['num_empty'] = $numEmpty;
         $values['num_full'] = $numFull;
         $values['num_half'] = $numHalf;

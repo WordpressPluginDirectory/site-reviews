@@ -9,11 +9,36 @@ abstract class Hooks extends AbstractHooks
 {
     abstract public function app(): PluginContract;
 
+    public function runIntegrations(): void
+    {
+        $dir = $this->app()->path('plugin/Integrations');
+        if (!is_dir($dir)) {
+            return;
+        }
+        $iterator = new \DirectoryIterator($dir);
+        $namespace = (new \ReflectionClass($this->app()))->getNamespaceName();
+        foreach ($iterator as $fileinfo) {
+            if (!$fileinfo->isDir() || $fileinfo->isDot()) {
+                continue;
+            }
+            try {
+                $hooks = "{$namespace}\Integrations\\{$fileinfo->getBasename()}\Hooks";
+                $reflect = new \ReflectionClass($hooks);
+                if ($reflect->isInstantiable()) {
+                    glsr()->singleton($hooks);
+                    add_action('plugins_loaded', fn () => glsr($hooks)->run(), 100); // run integrations late
+                    glsr($hooks)->runDeferred();
+                }
+            } catch (\ReflectionException $e) {
+                glsr_log()->error($e->getMessage());
+            }
+        }
+    }
+
     protected function baseHooks(array $hooks = []): array
     {
         $defaults = [
             ['enqueueAdminAssets', 'admin_enqueue_scripts'],
-            ['enqueueBlockAssets', 'enqueue_block_editor_assets'],
             ['enqueuePublicAssets', 'wp_enqueue_scripts'],
             ['filterActionLinks', "plugin_action_links_{$this->basename()}"],
             ['filterCapabilities', 'site-reviews/capabilities'],
@@ -27,6 +52,7 @@ abstract class Hooks extends AbstractHooks
             ['filterNgettextWithContext', "ngettext_with_context_{$this->id()}", 10, 5],
             ['filterRenderView', "{$this->id()}/render/view"],
             ['filterRoles', 'site-reviews/roles'],
+            ['filterRowMeta', 'plugin_row_meta', 10, 2],
             ['filterSettings', 'site-reviews/settings'],
             ['filterSubsubsub', 'site-reviews/addon/subsubsub'],
             ['filterTranslationEntries', 'site-reviews/translation/entries'],
@@ -34,13 +60,11 @@ abstract class Hooks extends AbstractHooks
             ['install', "{$this->id()}/activated"],
             ['onActivation', 'admin_init'],
             ['onDeactivation', "deactivate_{$this->basename()}"],
-            ['registerBlocks', 'init'],
             ['registerLanguages', 'after_setup_theme'],
             ['registerShortcodes', 'init'],
             ['registerTinymcePopups', 'admin_init'],
             ['registerWidgets', 'widgets_init'],
             ['renderSettings', "site-reviews/settings/{$this->slug()}"],
-            ['runIntegrations', 'plugins_loaded', 100],
         ];
         return array_merge($defaults, $hooks);
     }

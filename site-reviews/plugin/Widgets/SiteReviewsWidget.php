@@ -3,107 +3,65 @@
 namespace GeminiLabs\SiteReviews\Widgets;
 
 use GeminiLabs\SiteReviews\Contracts\ShortcodeContract;
-use GeminiLabs\SiteReviews\Database;
-use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Modules\Rating;
 use GeminiLabs\SiteReviews\Shortcodes\SiteReviewsShortcode;
 
 class SiteReviewsWidget extends Widget
 {
-    /**
-     * @param array $instance
-     *
-     * @return string
-     */
-    public function form($instance)
+    protected function widgetConfig(): array
     {
-        $this->widgetArgs = $this->shortcode()->normalize($instance)->args;
-        $terms = glsr(Database::class)->terms();
-        $this->renderField('text', [
-            'label' => _x('Title', 'admin-text', 'site-reviews'),
-            'name' => 'title',
-        ]);
-        $this->renderField('number', [
-            'default' => 10,
-            'label' => _x('How many reviews would you like to display?', 'admin-text', 'site-reviews'),
-            'max' => 100,
-            'name' => 'display',
-        ]);
-        $this->renderField('select', [
-            'label' => _x('What is the minimum rating to display?', 'admin-text', 'site-reviews'),
-            'name' => 'rating',
-            'options' => [
-                '0' => esc_attr(sprintf(_nx('%s star', '%s stars', 0, 'admin-text', 'site-reviews'), 0)),
-                '1' => esc_attr(sprintf(_nx('%s star', '%s stars', 1, 'admin-text', 'site-reviews'), 1)),
-                '2' => esc_attr(sprintf(_nx('%s star', '%s stars', 2, 'admin-text', 'site-reviews'), 2)),
-                '3' => esc_attr(sprintf(_nx('%s star', '%s stars', 3, 'admin-text', 'site-reviews'), 3)),
-                '4' => esc_attr(sprintf(_nx('%s star', '%s stars', 4, 'admin-text', 'site-reviews'), 4)),
-                '5' => esc_attr(sprintf(_nx('%s star', '%s stars', 5, 'admin-text', 'site-reviews'), 5)),
+        return [
+            'assigned_posts' => [
+                'description' => esc_html_x('Enter "post_id" to use the Post ID of the current page.', 'admin-text', 'site-reviews'),
+                'label' => esc_html_x('Limit Reviews by Assigned Pages', 'admin-text', 'site-reviews'),
+                'type' => 'text',
             ],
-        ]);
-        if (count($reviewTypes = glsr()->retrieveAs('array', 'review_types')) > 1) {
-            $this->renderField('select', [
-                'label' => _x('Which type of review would you like to display?', 'admin-text', 'site-reviews'),
-                'name' => 'type',
-                'options' => Arr::prepend($reviewTypes, _x('All Reviews', 'admin-text', 'site-reviews'), ''),
-            ]);
-        }
-        if (!empty($terms)) {
-            $this->renderField('select', [
-                'label' => _x('Limit reviews to this category', 'admin-text', 'site-reviews'),
-                'name' => 'assigned_terms',
-                'options' => Arr::prepend($terms, _x('Do not assign a category', 'admin-text', 'site-reviews'), ''),
-            ]);
-        }
-        $this->renderField('text', [
-            'default' => '',
-            'description' => sprintf(_x('You may also enter %s to use the Post ID of the current page.', 'admin-text', 'site-reviews'), '<code>post_id</code>'),
-            'label' => _x('Limit reviews to those assigned to a Post ID', 'admin-text', 'site-reviews'),
-            'name' => 'assigned_posts',
-        ]);
-        $this->renderField('text', [
-            'default' => '',
-            'description' => sprintf(esc_html_x('You may also enter %s to use the ID of the logged-in user.', 'admin-text', 'site-reviews'), '<code>user_id</code>'),
-            'label' => _x('Limit reviews to those assigned to a User ID', 'admin-text', 'site-reviews'),
-            'name' => 'assigned_users',
-        ]);
-        $this->renderField('text', [
-            'label' => _x('Enter any custom CSS classes here', 'admin-text', 'site-reviews'),
-            'name' => 'class',
-        ]);
-        $this->renderField('checkbox', [
-            'name' => 'hide',
-            'options' => $this->shortcode()->getHideOptions(),
-        ]);
-        return ''; // WP_Widget::form should return a string
+            'assigned_terms' => [
+                'description' => esc_html_x('Enter the Term ID or slug of a category.', 'admin-text', 'site-reviews'),
+                'label' => esc_html_x('Limit Reviews by Assigned Categories', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'assigned_users' => [
+                'description' => esc_html_x('Enter "user_id" to use the ID of the logged-in user.', 'admin-text', 'site-reviews'),
+                'label' => esc_html_x('Limit Reviews by Assigned Users', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'terms' => [
+                'label' => esc_html_x('Limit Reviews by Accepted Terms', 'admin-text', 'site-reviews'),
+                'options' => $this->shortcode->options('terms', [
+                    'placeholder' => _x('— Select —', 'admin-text', 'site-reviews'),
+                ]),
+                'type' => 'select',
+            ],
+            'type' => [
+                'label' => esc_html_x('Limit Reviews by Type', 'admin-text', 'site-reviews'),
+                'options' => $this->shortcode->options('type'),
+                'type' => 'select',
+                'value' => 'local',
+            ],
+            'display' => [
+                'label' => esc_html_x('Reviews Per Page', 'admin-text', 'site-reviews'),
+                'max' => 50,
+                'min' => 1,
+                'type' => 'number',
+                'value' => 10,
+            ],
+            'rating' => [
+                'label' => esc_html_x('Minimum Rating', 'admin-text', 'site-reviews'),
+                'max' => Rating::max(),
+                'min' => Rating::min(),
+                'type' => 'number',
+                'value' => Rating::min(),
+            ],
+            'hide' => [
+                'options' => $this->shortcode->options('hide'),
+                'type' => 'checkbox',
+            ],
+        ];
     }
 
-    /**
-     * @param array $newInstance
-     * @param array $oldInstance
-     *
-     * @return array
-     */
-    public function update($newInstance, $oldInstance)
-    {
-        if (!is_numeric($newInstance['display'])) {
-            $newInstance['display'] = 10;
-        }
-        $newInstance['display'] = min(50, max(0, intval($newInstance['display'])));
-        return parent::update($newInstance, $oldInstance);
-    }
-
-    protected function shortcode(): ShortcodeContract
+    protected function widgetShortcode(): ShortcodeContract
     {
         return glsr(SiteReviewsShortcode::class);
-    }
-
-    protected function widgetDescription(): string
-    {
-        return _x('Site Reviews: Display your recent reviews.', 'admin-text', 'site-reviews');
-    }
-
-    protected function widgetName(): string
-    {
-        return _x('Recent Reviews', 'admin-text', 'site-reviews');
     }
 }

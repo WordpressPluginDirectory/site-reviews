@@ -17,10 +17,11 @@ class EnqueuePublicAssets extends AbstractCommand
             return;
         }
         $dependencies = glsr()->filterArray('enqueue/public/dependencies', []);
-        wp_enqueue_script(glsr()->id, glsr(AssetJs::class)->url(), $dependencies, glsr(AssetJs::class)->version(), [
+        wp_register_script(glsr()->id, glsr(AssetJs::class)->url(), $dependencies, glsr(AssetJs::class)->version(), [
             'in_footer' => true,
             'strategy' => 'defer',
         ]);
+        wp_enqueue_script(glsr()->id);
         wp_add_inline_script(glsr()->id, $this->inlineScript(), 'before');
         wp_add_inline_script(glsr()->id, glsr()->filterString('enqueue/public/inline-script/after', ''));
         glsr(AssetJs::class)->optimize();
@@ -31,17 +32,8 @@ class EnqueuePublicAssets extends AbstractCommand
         if (!glsr()->filterBool('assets/css', true)) {
             return;
         }
-        // ensure block styles are loaded on post types with blocks disabled
-        $blocks = \WP_Block_Type_Registry::get_instance();
-        if ($blocks->is_registered('core/button')) {
-            // $blocks->get_registered('core/button')->style_handles;
-            wp_enqueue_style('wp-block-button');
-        }
-        if ($blocks->is_registered('core/search')) {
-            // $blocks->get_registered('core/search')->style_handles;
-            wp_enqueue_style('wp-block-search');
-        }
-        wp_enqueue_style(glsr()->id, glsr(AssetCss::class)->url(), [], glsr(AssetCss::class)->version());
+        wp_register_style(glsr()->id, glsr(AssetCss::class)->url(), [], glsr(AssetCss::class)->version());
+        wp_enqueue_style(glsr()->id);
         wp_add_inline_style(glsr()->id, $this->inlineStyles());
         glsr(AssetCss::class)->optimize();
     }
@@ -60,11 +52,12 @@ class EnqueuePublicAssets extends AbstractCommand
         $variables = [
             'action' => glsr()->prefix.'public_action',
             'addons' => [],
-            'ajaxpagination' => $this->getFixedSelectorsForPagination(),
-            'ajaxurl' => admin_url('admin-ajax.php'),
+            'ajax_pagination' => $this->getFixedSelectorsForPagination(),
+            'ajax_url' => admin_url('admin-ajax.php'),
             'captcha' => glsr(Captcha::class)->config(),
+            'modal_wrapped_by' => glsr()->filterarray('modal_wrapped_by', ['block']),
             'nameprefix' => glsr()->id,
-            'starsconfig' => [
+            'stars_config' => [
                 'clearable' => false,
                 'tooltip' => __('Select a Rating', 'site-reviews'),
             ],
@@ -72,17 +65,17 @@ class EnqueuePublicAssets extends AbstractCommand
                 'popstate' => false,
             ],
             'text' => [
-                'closemodal' => __('Close Modal', 'site-reviews'),
+                'close_modal' => __('Close Modal', 'site-reviews'),
             ],
-            'urlparameter' => $urlparameter,
-            'validationconfig' => array_merge(
+            'url_parameter' => $urlparameter,
+            'validation_config' => array_merge(
                 [
                     'field' => glsr(Style::class)->defaultClasses('field'),
                     'form' => glsr(Style::class)->defaultClasses('form'),
                 ],
                 glsr(Style::class)->validation
             ),
-            'validationstrings' => glsr(ValidationStringsDefaults::class)->defaults(),
+            'validation_strings' => glsr(ValidationStringsDefaults::class)->defaults(),
             'version' => glsr()->version,
         ];
         $variables = glsr()->filterArray('enqueue/public/localize', $variables);

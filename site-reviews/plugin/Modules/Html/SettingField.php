@@ -7,6 +7,7 @@ use GeminiLabs\SiteReviews\Database\OptionManager;
 use GeminiLabs\SiteReviews\Modules\Sanitizer;
 
 /**
+ * @property bool   $autosize
  * @property mixed  $default
  * @property array  $depends_on
  * @property bool   $is_hidden
@@ -20,6 +21,7 @@ class SettingField extends Field
     public function __construct(array $args = [])
     {
         $field = wp_parse_args($args, [
+            'autosize' => false,
             'default' => '',
             'depends_on' => [],
             'tags' => [],
@@ -38,10 +40,10 @@ class SettingField extends Field
         $data = [
             'context' => [
                 'class' => $this->classAttrField(),
-                'depends_on' => esc_js($this->offsetGet('data-depends') ?? ''),
+                'depends_on' => esc_attr($this->offsetGet('data-depends') ?? ''),
                 'field' => $this->buildFieldElement(),
                 'label' => $this->buildFieldLabel(),
-                'legend' => $this->label,
+                'legend' => esc_html($this->label),
             ],
             'field' => $this,
         ];

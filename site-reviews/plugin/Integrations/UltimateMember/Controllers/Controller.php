@@ -42,6 +42,9 @@ class Controller extends AbstractController
             $css .= '.um-reviews-form:has(div) {border-top: 3px solid #eee; padding:var(--glsr-gap-xl) 0;}';
             $css .= '.um-reviews-reviews:has(.glsr-reviews) {border-top: 3px solid #eee; padding-top:var(--glsr-gap-xl);}';
         }
+        if (glsr_get_option('integrations.ultimatemember.display_account_tab', false, 'bool')) {
+            $css .= '.um-form:has(#_um_account_tab[value="reviews"]) .um-account-main {max-width:none;}';
+        }
         return $css;
     }
 
@@ -74,19 +77,40 @@ class Controller extends AbstractController
             $settings = Arr::set($settings, 'settings.integrations.ultimatemember.enabled', 'no');
         }
         $shortcodes = [
+            'account_tab_reviews' => 'site_reviews',
             'form' => 'site_reviews_form',
             'reviews' => 'site_reviews',
             'summary' => 'site_reviews_summary',
         ];
-        foreach ($shortcodes as $key => $shortcode) {
-            $path = "settings.integrations.ultimatemember.{$key}";
+        foreach ($shortcodes as $settingKey => $shortcode) {
+            $path = "settings.integrations.ultimatemember.{$settingKey}";
             $value = Arr::get($input, $path);
-            if (1 !== preg_match("/^\[{$shortcode}(\s[^\]]*\]|\])$/", $value)) {
-                continue;
-            }
-            if (!str_contains($value, 'assigned_users')) {
-                $value = str_replace($shortcode, sprintf('%s assigned_users="profile_id"', $shortcode), $value);
-                $settings = Arr::set($settings, $path, $value);
+            $pattern = get_shortcode_regex([$shortcode]);
+            $normalizedValue = preg_replace_callback("/$pattern/", function ($match) use ($settingKey) {
+                $atts = shortcode_parse_atts($match[3]);
+                if (str_starts_with($settingKey, 'account')) {
+                    $atts['author'] = 'user_id';
+                } elseif (str_starts_with($settingKey, 'profile')) {
+                    $atts['assigned_users'] = 'profile_id';
+                }
+                ksort($atts);
+                $attributes = [];
+                foreach ($atts as $key => $val) {
+                    $attributes[] = sprintf('%s="%s"', $key, esc_attr($val));
+                }
+                $attributes = implode(' ', $attributes);
+                return "[{$match[2]} {$attributes}]";
+            }, $value);
+            $settings = Arr::set($settings, $path, $normalizedValue);
+        }
+        foreach (['display_account_tab', 'enabled'] as $key) {
+            $old = glsr_get_option("settings.integrations.ultimatemember.{$key}");
+            $new = Arr::get($settings, "settings.integrations.ultimatemember.{$key}");
+            if ($new !== $old) {
+                // This is a simpler way to force rewrite rules to be recreated
+                // instead of using flush_rewrite_rules().
+                delete_option('rewrite_rules');
+                break;
             }
         }
         return $settings;

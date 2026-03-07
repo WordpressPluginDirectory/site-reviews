@@ -17,22 +17,18 @@ class SummaryPercentagesTag extends SummaryTag
 
     protected function ratingBar(int $level, array $percentages): string
     {
-        $background = glsr(Builder::class)->span([
-            'class' => 'glsr-bar-background-percent',
-            'style' => "width:{$percentages[$level]}",
-        ]);
         return glsr(Builder::class)->span([
-            'class' => 'glsr-bar-background',
-            'text' => $background,
+            'class' => 'glsr-summary-bar-background',
+            'style' => "--glsr-bar-percent:{$percentages[$level]};",
         ]);
     }
 
     protected function ratingInfo(int $level, array $percentages): string
     {
-        $count = glsr()->filterString('summary/counts', $percentages[$level], $this->ratings[$level]);
         return glsr(Builder::class)->span([
-            'class' => 'glsr-bar-percent',
-            'text' => $count,
+            'class' => 'glsr-summary-bar-percent',
+            'data-percent' => $percentages[$level],
+            'data-reviews' => $this->ratings[$level],
         ]);
     }
 
@@ -40,7 +36,7 @@ class SummaryPercentagesTag extends SummaryTag
     {
         $label = $this->args->get("labels.{$level}");
         return glsr(Builder::class)->span([
-            'class' => 'glsr-bar-label',
+            'class' => 'glsr-summary-bar-label',
             'text' => $label,
         ]);
     }
@@ -48,7 +44,7 @@ class SummaryPercentagesTag extends SummaryTag
     protected function value(): string
     {
         $percentages = preg_filter('/$/', '%', glsr(Rating::class)->percentages($this->ratings));
-        $ratingRange = range(glsr()->constant('MAX_RATING', Rating::class), 1);
+        $ratingRange = range(Rating::max(), 1);
         return array_reduce($ratingRange, function ($carry, $level) use ($percentages) {
             $label = $this->ratingLabel($level);
             $bar = $this->ratingBar($level, $percentages);
@@ -59,7 +55,7 @@ class SummaryPercentagesTag extends SummaryTag
                 'rating' => $level,
             ]);
             return $carry.glsr(Builder::class)->div([
-                'class' => 'glsr-bar',
+                'class' => 'glsr-summary-bar',
                 'data-level' => $level,
                 'text' => $value,
             ]);

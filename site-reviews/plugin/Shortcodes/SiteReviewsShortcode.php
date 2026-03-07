@@ -5,6 +5,7 @@ namespace GeminiLabs\SiteReviews\Shortcodes;
 use GeminiLabs\SiteReviews\Database\ReviewManager;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Modules\Html\ReviewsHtml;
+use GeminiLabs\SiteReviews\Modules\Rating;
 use GeminiLabs\SiteReviews\Modules\Schema;
 use GeminiLabs\SiteReviews\Reviews;
 
@@ -26,6 +27,16 @@ class SiteReviewsShortcode extends Shortcode
         return (string) $this->buildReviewsHtml();
     }
 
+    public function description(): string
+    {
+        return esc_html_x('Display your reviews', 'admin-text', 'site-reviews');
+    }
+
+    public function enqueue(): void
+    {
+        wp_enqueue_style('site-reviews-reviews-style');
+    }
+
     public function generateSchema(Reviews $reviews): void
     {
         if (Cast::toBool($this->args['schema'])) {
@@ -33,6 +44,113 @@ class SiteReviewsShortcode extends Shortcode
                 glsr(Schema::class)->build($this->args, $reviews)
             );
         }
+    }
+
+    public function name(): string
+    {
+        return esc_html_x('Latest Reviews', 'admin-text', 'site-reviews');
+    }
+
+    protected function config(): array
+    {
+        return [ // order is intentional
+            'assigned_posts' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Assigned Pages', 'admin-text', 'site-reviews'),
+                'multiple' => true,
+                'placeholder' => esc_html_x('Select a Page...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'assigned_terms' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Assigned Categories', 'admin-text', 'site-reviews'),
+                'multiple' => true,
+                'placeholder' => esc_html_x('Select a Category...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'assigned_users' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Assigned Users', 'admin-text', 'site-reviews'),
+                'multiple' => true,
+                'placeholder' => esc_html_x('Select a User...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'author' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Review Author', 'admin-text', 'site-reviews'),
+                'multiple' => false,
+                'placeholder' => esc_html_x('Select a User...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'terms' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Accepted Terms', 'admin-text', 'site-reviews'),
+                'options' => $this->options('terms'),
+                'placeholder' => esc_html_x('Select Review Terms...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'type' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Type', 'admin-text', 'site-reviews'),
+                'options' => $this->options('type'),
+                'placeholder' => esc_html_x('Select a Review Type...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'verified' => [
+                'group' => 'general',
+                'label' => esc_html_x('Limit Reviews by Verified Status', 'admin-text', 'site-reviews'),
+                'options' => $this->options('verified'),
+                'placeholder' => esc_html_x('Select Verified Status...', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'pagination' => [
+                'group' => 'display',
+                'label' => esc_html_x('Pagination Type', 'admin-text', 'site-reviews'),
+                'options' => $this->options('pagination'),
+                'placeholder' => esc_attr_x('No Pagination', 'admin-text', 'site-reviews'),
+                'type' => 'select',
+            ],
+            'display' => [
+                'default' => 10,
+                'group' => 'display',
+                'label' => esc_html_x('Reviews Per Page', 'admin-text', 'site-reviews'),
+                'max' => 50,
+                'min' => 1,
+                'type' => 'number',
+            ],
+            'rating' => [
+                'default' => (string) Rating::min(),
+                'group' => 'display',
+                'label' => esc_html_x('Minimum Rating', 'admin-text', 'site-reviews'),
+                'max' => Rating::max(),
+                'min' => Rating::min(),
+                'placeholder' => (string) Rating::min(),
+                'type' => 'number',
+            ],
+            'schema' => [
+                'description' => esc_html_x('The schema should only be enabled once on your page.', 'admin-text', 'site-reviews'),
+                'group' => 'schema',
+                'label' => esc_html_x('Enable the schema?', 'admin-text', 'site-reviews'),
+                'type' => 'checkbox',
+            ],
+            'hide' => [
+                'group' => 'hide',
+                'options' => $this->options('hide'),
+                'type' => 'checkbox',
+            ],
+            'id' => [
+                'description' => esc_html_x('This should be a unique value.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Custom ID', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'class' => [
+                'description' => esc_html_x('Separate multiple classes with spaces.', 'admin-text', 'site-reviews'),
+                'group' => 'advanced',
+                'label' => esc_html_x('Additional CSS classes', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+        ];
     }
 
     protected function debug(array $data = []): void

@@ -15,7 +15,8 @@ class MainHooks extends AbstractHooks
             ['logOnce', 'wp_footer'],
             ['onInit', 'init', 5], // run after possible init:1 migration
             ['onMigrationEnd', 'site-reviews/migration/end'],
-            ['registerAddons', 'plugins_loaded'],
+            ['parseAssignedPostTypesInQuery', 'parse_query'],
+            ['registerAddons', 'plugins_loaded', -50], // Ensure this is loaded before any deferred hooks
             ['registerLanguages', 'after_setup_theme'],
             ['registerPostMeta', 'init'],
             ['registerPostType', 'init'],

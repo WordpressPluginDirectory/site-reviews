@@ -7,31 +7,73 @@ use GeminiLabs\SiteReviews\Contracts\ShortcodeContract;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Str;
 use GeminiLabs\SiteReviews\Modules\Html\WidgetBuilder;
+use GeminiLabs\SiteReviews\Modules\Html\WidgetField;
 
 abstract class Widget extends \WP_Widget
 {
-    /**
-     * @var array
-     */
-    protected $mapped = [ // @compat 4.0
-        'assign_to' => 'assigned_posts',
-        'assigned_to' => 'assigned_posts',
-        'category' => 'assigned_terms',
-        'per_page' => 'display',
-        'user' => 'assigned_users',
-    ];
-
-    /**
-     * @var array
-     */
-    protected $widgetArgs;
+    public ShortcodeContract $shortcode;
 
     public function __construct()
     {
-        $className = (new \ReflectionClass($this))->getShortName();
-        $className = str_replace('Widget', '', $className);
-        $baseId = glsr()->prefix.Str::dashCase($className);
-        parent::__construct($baseId, $this->widgetName(), $this->widgetOptions());
+        $this->shortcode = $this->widgetShortcode();
+        $baseId = glsr()->prefix.Str::dashCase($this->shortcode->tag);
+        $description = $this->shortcode->description ?: $this->shortcode->name;
+        parent::__construct($baseId, $this->shortcode->name, [
+            'description' => sprintf('%s: %s', glsr()->name, $description),
+            'name' => $this->shortcode->name,
+            'show_instance_in_rest' => true,
+        ]);
+    }
+
+    /**
+     * @param array $instance
+     *
+     * @return string
+     */
+    public function form($instance)
+    {
+        $instance = $this->normalizeInstance(wp_parse_args($instance));
+        $notice = _x('This is a legacy widget with limited options, consider switching to the shortcode or block.', 'admin-text', 'site-reviews');
+        echo glsr(WidgetBuilder::class)->div([
+            'class' => 'notice notice-alt notice-warning inline',
+            'style' => 'margin:1em 0;',
+            'text' => glsr(WidgetBuilder::class)->p($notice),
+        ]);
+        $config = wp_parse_args($this->widgetConfig(), [ // prepend
+            'title' => [
+                'label' => _x('Widget Title', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+        ]);
+        $config = array_merge($config, [ // append
+            'id' => [
+                'description' => esc_html_x('This should be a unique value.', 'admin-text', 'site-reviews'),
+                'label' => esc_html_x('Custom ID', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+            'class' => [
+                'description' => esc_html_x('Separate multiple classes with spaces.', 'admin-text', 'site-reviews'),
+                'label' => esc_html_x('Additional CSS classes', 'admin-text', 'site-reviews'),
+                'type' => 'text',
+            ],
+        ]);
+        foreach ($config as $name => $args) {
+            if ('type' === $name && empty($args['options'])) {
+                continue;
+            }
+            $this->renderField($name, $args, $instance);
+        }
+        return '';
+    }
+
+    /**
+     * @param array $oldInstance
+     *
+     * @return array
+     */
+    public function update($instance, $oldInstance)
+    {
+        return $this->normalizeInstance(wp_parse_args($instance));
     }
 
     /**
@@ -42,30 +84,15 @@ abstract class Widget extends \WP_Widget
      */
     public function widget($args, $instance)
     {
-        $shortcode = $this->shortcode();
-        $args = $this->normalizeArgs($args);
-        $html = $shortcode->build($instance, 'widget');
-        $title = !empty($shortcode->args['title'])
-            ? $args->before_title.$shortcode->args['title'].$args->after_title
+        $args = $this->normalizeArgs(wp_parse_args($args));
+        $html = $this->shortcode->build($instance, 'widget');
+        $title = !empty($this->shortcode->args['title'])
+            ? $args->before_title.$this->shortcode->args['title'].$args->after_title
             : '';
         echo $args->before_widget.$title.$html.$args->after_widget;
     }
 
-    /**
-     * @param string $key
-     *
-     * @return mixed
-     */
-    protected function mapped($key)
-    {
-        $key = Arr::get($this->mapped, $key, $key);
-        return Arr::get($this->widgetArgs, $key);
-    }
-
-    /**
-     * @param array|string $args
-     */
-    protected function normalizeArgs($args): Arguments
+    protected function normalizeArgs(array $args): Arguments
     {
         $args = wp_parse_args($args, [
             'before_widget' => '',
@@ -73,49 +100,33 @@ abstract class Widget extends \WP_Widget
             'before_title' => '<h2 class="glsr-title">',
             'after_title' => '</h2>',
         ]);
-        $args = glsr()->filterArray('widget/args', $args, $this->shortcode()->shortcode);
+        $args = glsr()->filterArray('widget/args', $args, $this->shortcode->tag);
         return glsr()->args($args);
     }
 
-    protected function normalizeFieldAttributes(string $tag, array $args): array
+    protected function normalizeInstance(array $instance): array
     {
-        if (empty($args['value'])) {
-            $args['value'] = $this->mapped($args['name']);
+        $atts = $this->shortcode->defaults()->unguardedMerge($instance);
+        $pairs = array_fill_keys(array_keys($instance), '');
+        return shortcode_atts($pairs, $atts);
+    }
+
+    protected function renderField(string $name, array $args, array $instance = []): void
+    {
+        $field = new WidgetField(wp_parse_args($args, compact('name')));
+        if (!$field->isValid()) {
+            return;
         }
-        if (empty($this->mapped('options')) && in_array($tag, ['checkbox', 'radio'])) {
-            $args['checked'] = in_array($args['value'], (array) $this->mapped($args['name']));
+        $value = Arr::get($instance, $field->original_name); // @phpstan-ignore-line
+        if ('' !== $value) {
+            $field->value = $value; // @phpstan-ignore-line
         }
-        $args['id'] = $this->get_field_id($args['name']);
-        $args['name'] = $this->get_field_name($args['name']);
-        return $args;
+        $field->id = $this->get_field_id($field->name); // @phpstan-ignore-line
+        $field->name = $this->get_field_name($field->name); // @phpstan-ignore-line
+        $field->render();
     }
 
-    protected function renderField(string $tag, array $args = []): void
-    {
-        $args = $this->normalizeFieldAttributes($tag, $args);
-        echo glsr(WidgetBuilder::class)->p([
-            'text' => glsr(WidgetBuilder::class)->$tag($args),
-        ]);
-    }
+    abstract protected function widgetConfig(): array;
 
-    abstract protected function shortcode(): ShortcodeContract;
-
-    protected function widgetDescription(): string
-    {
-        return '';
-    }
-
-    protected function widgetName(): string
-    {
-        return _x('Site Reviews: Unknown Widget', 'admin-text', 'site-reviews');
-    }
-
-    protected function widgetOptions(): array
-    {
-        return [
-            'description' => $this->widgetDescription(),
-            'name' => $this->widgetName(),
-            'show_instance_in_rest' => true,
-        ];
-    }
+    abstract protected function widgetShortcode(): ShortcodeContract;
 }

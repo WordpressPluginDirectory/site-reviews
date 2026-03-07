@@ -31,29 +31,36 @@ class FlyoutController extends AbstractController
     {
         $items = [
             [
+                'class' => 'glsr-flyout-premium',
                 'icon' => 'dashicons-star-filled',
                 'title' => _x('Upgrade to Premium', 'admin-text', 'site-reviews'),
-                'url' => 'https://niftyplugins.com/plugins/site-reviews-premium/',
-            ],
-            [
-                'icon' => 'dashicons-editor-help',
-                'title' => _x('Learn the Basics', 'admin-text', 'site-reviews'),
-                'url' => glsr_admin_url('welcome'),
-            ],
-            [
-                'icon' => 'dashicons-youtube',
-                'title' => _x('Watch a Tutorial', 'admin-text', 'site-reviews'),
-                'url' => 'https://youtu.be/H5HdMCXvuq8',
-            ],
-            [
-                'icon' => 'dashicons-sos',
-                'title' => _x('Read the Documentation', 'admin-text', 'site-reviews'),
-                'url' => glsr_admin_url('documentation'),
+                'url' => glsr_premium_url('site-reviews-premium'),
             ],
             [
                 'icon' => 'dashicons-wordpress-alt',
                 'title' => _x('Ask for Help', 'admin-text', 'site-reviews'),
                 'url' => 'https://wordpress.org/support/plugin/site-reviews/',
+            ],
+            [
+                'icon' => 'dashicons-youtube',
+                'title' => _x('Watch the Tutorial', 'admin-text', 'site-reviews'),
+                'url' => 'https://youtu.be/H5HdMCXvuq8',
+            ],
+            [
+                'icon' => 'dashicons-editor-help',
+                'title' => _x('Read the Documentation', 'admin-text', 'site-reviews'),
+                'url' => glsr_admin_url('documentation'),
+            ],
+            [
+                'icon' => 'dashicons-book',
+                'title' => _x('Read a Quick Guide to Site Reviews', 'admin-text', 'site-reviews'),
+                'url' => glsr_admin_url('welcome'),
+            ],
+            [
+                'class' => 'glsr-flyout-write-review',
+                'icon' => 'dashicons-testimonial',
+                'title' => _x('Rate Site Reviews ★★★★★ on Wordpress', 'admin-text', 'site-reviews'),
+                'url' => 'https://wordpress.org/support/plugin/site-reviews/reviews/#new-post',
             ],
         ];
         if (glsr(License::class)->isPremium()) {

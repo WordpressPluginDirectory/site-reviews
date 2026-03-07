@@ -16,7 +16,7 @@ class SummaryTextTag extends SummaryTag
 
     protected function value(): string
     {
-        $max = glsr()->constant('MAX_RATING', Rating::class);
+        $max = Rating::max();
         $num = glsr(Rating::class)->totalCount($this->ratings);
         $rating = glsr(Rating::class)->average($this->ratings);
         $rating = glsr(Rating::class)->format($rating);
@@ -31,6 +31,10 @@ class SummaryTextTag extends SummaryTag
             );
         }
         $num = number_format_i18n($num);
-        return str_replace(['{rating}', '{max}', '{num}'], [$rating, $max, $num], $text);
+        return str_replace(
+            ['{rating}', '{max}', '{num}'],
+            [$rating, (string) $max, (string) $num],
+            $text
+        );
     }
 }

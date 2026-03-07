@@ -15,14 +15,6 @@ use GeminiLabs\SiteReviews\Review;
 
 class TemplateTags
 {
-    public function __call($method, $args)
-    {
-        if ('tagList' === $method) { // @compat
-            return call_user_func_array([$this, 'listTags'], $args);
-        }
-        throw new \BadMethodCallException("Method [$method] does not exist.");
-    }
-
     public function filteredTags(array $args = []): array
     {
         $exclude = Arr::consolidate(Arr::get($args, 'exclude'));
@@ -81,8 +73,10 @@ class TemplateTags
     public function tagReviewAssignedPosts(Review $review): string
     {
         $posts = $review->assignedPosts();
-        $titles = wp_list_pluck($posts, 'post_title', 'ID');
-        $titles = array_map(fn ($title) => trim($title) ?: __('(no title)', 'site-reviews'), $titles);
+        $titles = array_map(
+            fn ($title) => trim($title) ?: __('(no title)', 'site-reviews'),
+            wp_list_pluck($posts, 'post_title', 'ID')
+        );
         return Str::naturalJoin($titles);
     }
 
@@ -95,15 +89,10 @@ class TemplateTags
 
     public function tagReviewAssignedUsers(Review $review): string
     {
-        $users = $review->assignedUsers();
-        $names = [];
-        foreach ($users as $user) {
-            $name = glsr(Sanitizer::class)->sanitizeUserName(
-                $user->display_name,
-                $user->user_nicename
-            );
-            $names[] = $name;
-        }
+        $names = array_map(
+            fn ($user) => glsr(Sanitizer::class)->sanitizeUserName($user),
+            $review->assignedUsers()
+        );
         return Str::naturalJoin($names);
     }
 
@@ -158,7 +147,7 @@ class TemplateTags
     public function tagReviewStars(Review $review): string
     {
         $full = str_repeat('★', $review->rating);
-        $empty = str_repeat('☆', Cast::toInt(glsr()->constant('MAX_RATING', Rating::class)) - $review->rating);
+        $empty = str_repeat('☆', Rating::max() - $review->rating);
         return $full.$empty;
     }
 
@@ -170,13 +159,13 @@ class TemplateTags
     public function tags(Review $review, array $args = []): array
     {
         $tags = $this->filteredTags($args);
-        array_walk($tags, function (&$content, $tag) use ($review) {
+        array_walk($tags, function (&$content, $tag) use ($args, $review) {
             $content = ''; // remove the tag description first!
             $method = Helper::buildMethodName('tag', $tag);
             if (method_exists($this, $method)) {
                 $content = call_user_func([$this, $method], $review);
             }
-            $content = glsr()->filterString("notification/tag/{$tag}", $content, $review);
+            $content = glsr()->filterString("notification/tag/{$tag}", $content, $review, $args);
         });
         if (array_key_exists('edit_url', $tags)) {
             $tags['review_link'] = glsr(Builder::class)->a([ // @compat v6

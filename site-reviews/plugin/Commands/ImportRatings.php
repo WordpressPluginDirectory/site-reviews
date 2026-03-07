@@ -20,7 +20,7 @@ class ImportRatings extends AbstractCommand
 
     protected function cleanup(): void
     {
-        glsr(Database::class)->deleteMeta(glsr()->export_key);
+        delete_post_meta_by_key(glsr()->export_key);
         glsr(Migrate::class)->reset();
     }
 
@@ -99,5 +99,8 @@ class ImportRatings extends AbstractCommand
         $values = maybe_unserialize($result['meta_value']);
         $values['review_id'] = $result['post_id'];
         $result = glsr(RatingDefaults::class)->unguardedRestrict($values);
+        if (1 === preg_match('#/'.glsr()->ID.'/avatars/[A-Z]+\.svg$#', $result['avatar'])) {
+            $result['avatar'] = ''; // discard locally generated avatar SVG URLs
+        }
     }
 }

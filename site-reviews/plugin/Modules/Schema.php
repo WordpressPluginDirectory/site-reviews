@@ -6,6 +6,7 @@ use GeminiLabs\SiteReviews\Database\OptionManager;
 use GeminiLabs\SiteReviews\Database\RatingManager;
 use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Modules\SchemaParser;
 use GeminiLabs\SiteReviews\Modules\Schema\BaseType;
 use GeminiLabs\SiteReviews\Modules\Schema\UnknownType;
 use GeminiLabs\SiteReviews\Review;
@@ -58,8 +59,8 @@ class Schema
                 $this->getSchemaType('AggregateRating')
                     ->ratingValue($this->getRatingValue())
                     ->reviewCount($count)
-                    ->bestRating(glsr()->constant('MAX_RATING', Rating::class))
-                    ->worstRating(glsr()->constant('MIN_RATING', Rating::class))
+                    ->bestRating(Rating::max())
+                    ->worstRating(Rating::min())
             );
             $schema = $schema->toArray();
             $type = $schema['@type'];
@@ -151,8 +152,8 @@ class Schema
             $schema->reviewRating(
                 $this->getSchemaType('Rating')
                     ->ratingValue($review->rating)
-                    ->bestRating(glsr()->constant('MAX_RATING', Rating::class))
-                    ->worstRating(glsr()->constant('MIN_RATING', Rating::class))
+                    ->bestRating(Rating::max())
+                    ->worstRating(Rating::min())
             );
         }
         return glsr()->filterArray('schema/review', $schema->toArray(), $review, $this->args);
@@ -253,12 +254,12 @@ class Schema
     protected function getThingDescription(): string
     {
         if (is_archive()) {
-            $text = get_the_archive_description();
+            $text = (string) get_the_archive_description();
         } elseif (is_singular()) {
             $post = get_post();
-            $text = Arr::get($post, 'post_excerpt');
+            $text = Arr::getAs('string', $post, 'post_excerpt');
             if (empty($text)) {
-                $text = Arr::get($post, 'post_content');
+                $text = Arr::getAs('string', $post, 'post_content');
             }
         }
         if (!empty($text)) {
@@ -288,10 +289,10 @@ class Schema
     protected function getThingName(): string
     {
         if (is_archive()) {
-            return wp_strip_all_tags(get_the_archive_title());
+            return wp_strip_all_tags((string) get_the_archive_title());
         }
         if (is_singular()) {
-            return get_the_title();
+            return (string) get_the_title();
         }
         return '';
     }
@@ -300,7 +301,7 @@ class Schema
     {
         $queried = get_queried_object();
         if (is_singular()) {
-            $url = (string) get_the_permalink();
+            $url = get_the_permalink();
         } elseif (is_category()) {
             $url = get_category_link($queried);
         } elseif (is_tag()) {

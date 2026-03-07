@@ -20,20 +20,20 @@ class AdditionalFieldsDefaults extends DefaultsAbstract
      * This is done after $casts and before $enums.
      */
     public array $sanitize = [
-        'language' => 'regex:/[a-z\-]+/',
+        'geolocation' => 'array-consolidate',
         'response' => 'text-html',
-        'response_by' => 'user-id:0',
+        'response_by' => 'user-id',
         'verified_on' => 'timestamp',
     ];
 
     protected function defaults(): array
     {
         return [
-            'language' => '',
-            'response' => '',
-            'response_by' => '',
+            'geolocation' => '', // geolocation of review
+            'response' => '', // review response
+            'response_by' => '', // ID of User who wrote the review response
             'verified' => '', // this is the meta_key used by WooCommerce for verified owner
-            'verified_on' => '',
+            'verified_on' => '', // timestamp of when review was verified
             'verified_requested' => '',
         ];
     }

@@ -28,9 +28,8 @@
                     <div class="components-notice is-warning">
                         <p class="components-notice__content">
                             <?php
-                                printf(_x('Did you read the %sGetting Started%s guide?', 'admin-text', 'site-reviews'),
-                                    sprintf('<a href="%s" target="_blank">', glsr_admin_url('welcome')),
-                                    '</a>'
+                                printf(_x('Did you read the %s guide?', 'Getting Started (admin-text)', 'site-reviews'),
+                                    glsr_admin_link('welcome', _x('Getting Started', 'admin-text', 'site-reviews'))
                                 );
                             ?>
                         </p>
@@ -38,9 +37,8 @@
                     <div class="components-notice is-info">
                         <p class="components-notice__content">
                             <?php
-                                printf(_x('Maybe one of the %saddons%s provide this feature.', 'admin-text', 'site-reviews'),
-                                    '<a href="https://niftyplugins.com/plugins/" target="_blank">',
-                                    '</a>'
+                                printf(_x('Maybe one of the %s provide this feature.', 'link to addons page (admin-text)', 'site-reviews'),
+                                    glsr_premium_link('addons', _x('addons', 'admin-text', 'site-reviews'))
                                 );
                             ?>
                         </p>

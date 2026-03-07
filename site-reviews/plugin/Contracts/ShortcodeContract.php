@@ -2,34 +2,49 @@
 
 namespace GeminiLabs\SiteReviews\Contracts;
 
+use GeminiLabs\SiteReviews\Defaults\DefaultsAbstract;
+
 /**
  * @property array  $args
  * @property string $debug
- * @property string $shortcode
- * @property string $type
+ * @property string $description
+ * @property string $from
+ * @property string $name
+ * @property string $tag
+ * @phpstan-require-extends \GeminiLabs\SiteReviews\Shortcodes\Shortcode
  */
 interface ShortcodeContract
 {
-    public function build(array $args = [], string $type = 'shortcode'): string;
-
-    /**
-     * @param string|array $args
-     */
-    public function buildBlock($args = []): string;
-
-    /**
-     * @param string|array $args
-     */
-    public function buildShortcode($args = []): string;
+    public function build(array $args = [], string $from = 'shortcode', bool $isWrapped = true): string;
 
     public function buildTemplate(): string;
 
-    public function getDisplayOptions(): array;
+    public function classAttr(string $classAttr, bool $isWrapper = false): string;
 
-    public function getHideOptions(): array;
+    public function defaults(): DefaultsAbstract;
+
+    public function description(): string;
+
+    public function hasVisibleFields(array $args = []): bool;
+
+    public function name(): string;
+
+    public function normalize(array $args, string $type = ''): ShortcodeContract;
 
     /**
-     * @return static
+     * Returns the options for a shortcode setting. Results are filtered
+     * by the "site-reviews/shortcode/options/{$options}" hook.
      */
-    public function normalize(array $args, string $type = '');
+    public function options(string $option, array $args = []): array;
+
+    public function register(): void;
+
+    /**
+     * Returns the filtered shortcode settings configuration.
+     */
+    public function settings(): array;
+
+    public function tag(): string;
+
+    public function wrap(string $renderedHtml, array $attributes = []): string;
 }

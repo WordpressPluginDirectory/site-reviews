@@ -16,12 +16,12 @@ class SiteReviewDefaults extends DefaultsAbstract
     ];
 
     /**
-     * The values that should be guarded.
-     *
-     * @var string[]
+     * The keys that should be mapped to other keys.
+     * Keys are mapped before the values are normalized and sanitized.
+     * Note: Mapped keys should not be included in the defaults!
      */
-    public array $guarded = [
-        'fallback', 'title',
+    public array $mapped = [
+        'className' => 'class',
     ];
 
     /**
@@ -30,10 +30,8 @@ class SiteReviewDefaults extends DefaultsAbstract
      */
     public array $sanitize = [
         'class' => 'attr-class',
-        'fallback' => 'text-post',
         'hide' => 'array-string',
-        'id' => 'id-hash',
-        'title' => 'text',
+        'id' => 'id-unique',
     ];
 
     protected function defaults(): array
@@ -41,11 +39,9 @@ class SiteReviewDefaults extends DefaultsAbstract
         return [
             'class' => '',
             'debug' => false,
-            'fallback' => __('Review not found.', 'site-reviews'),
             'hide' => [],
             'id' => '',
             'post_id' => 0,
-            'title' => '',
         ];
     }
 

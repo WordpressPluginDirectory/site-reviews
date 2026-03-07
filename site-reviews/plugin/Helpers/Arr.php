@@ -146,18 +146,17 @@ class Arr
         return wp_is_numeric_array($array);
     }
 
-    public static function prefixKeys(array $values, string $prefix = '_', bool $prefixed = true): array
+    public static function prefixKeys(array $values, string $prefix = '_'): array
     {
-        $trim = Helper::ifTrue($prefixed, $prefix, '');
-        $prefixed = [];
+        $result = [];
         foreach ($values as $key => $value) {
             $key = trim($key);
-            if (0 === strpos($key, $prefix)) {
-                $key = substr($key, strlen($prefix));
+            if (!str_starts_with($key, $prefix)) {
+                $key = $prefix.$key;
             }
-            $prefixed[$trim.$key] = $value;
+            $result[$key] = $value;
         }
-        return $prefixed;
+        return $result;
     }
 
     /**
@@ -212,6 +211,19 @@ class Arr
         return $result;
     }
 
+    /**
+     * This reindexes the array!
+     */
+    public static function removeValue(mixed $value, array $array): array
+    {
+        if (!wp_is_numeric_array($array)) {
+            return $array;
+        }
+        return array_values(
+            array_filter($array, fn ($item) => $item !== $value)
+        );
+    }
+
     public static function restrictKeys(array $array, array $allowedKeys): array
     {
         return array_intersect_key($array, array_fill_keys($allowedKeys, ''));
@@ -224,18 +236,21 @@ class Arr
      * @param array      $haystack
      * @param int|string $key
      *
-     * @return array|iterable|false
+     * @return array|false
      */
     public static function searchByKey($needle, $haystack, $key)
     {
-        if (!is_array($haystack) || array_diff_key($haystack, array_filter($haystack, 'is_iterable'))) {
+        if (!is_array($haystack) || empty($haystack)) {
             return false;
         }
-        $index = array_search($needle, wp_list_pluck($haystack, $key));
-        if (false !== $index) {
-            return $haystack[$index];
+        $keys = array_keys($haystack);
+        $values = array_column($haystack, $key);
+        if (count($keys) !== count($values)) {
+            return false; // Avoid array_combine failure
         }
-        return false;
+        $column = array_combine($keys, $values);
+        $index = array_search($needle, $column, true);
+        return false !== $index ? $haystack[$index] ?? false : false;
     }
 
     /**
@@ -296,6 +311,14 @@ class Arr
 
     public static function unprefixKeys(array $values, string $prefix = '_'): array
     {
-        return static::prefixKeys($values, $prefix, false);
+        $results = [];
+        foreach ($values as $key => $value) {
+            $key = trim($key);
+            if ($key !== $prefix && str_starts_with($key, $prefix)) {
+                $key = substr($key, strlen($prefix));
+            }
+            $results[$key] = $value;
+        }
+        return $results;
     }
 }

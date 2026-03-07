@@ -2,8 +2,8 @@
 
 namespace GeminiLabs\SiteReviews;
 
-use GeminiLabs\SiteReviews\Addons\Updater;
 use GeminiLabs\SiteReviews\Contracts\PluginContract;
+use GeminiLabs\SiteReviews\Contracts\ShortcodeContract;
 use GeminiLabs\SiteReviews\Database\OptionManager;
 use GeminiLabs\SiteReviews\Defaults\PermissionDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
@@ -38,7 +38,7 @@ final class Application extends Container implements PluginContract
     use Session;
     use Storage;
 
-    public const DB_VERSION = '1.4';
+    public const DB_VERSION = '1.5';
     public const EXPORT_KEY = '_glsr_export';
     public const ID = 'site-reviews';
     public const PAGED_HANDLE = 'pagination_request';
@@ -164,8 +164,8 @@ final class Application extends Container implements PluginContract
                     'default' => '',
                     'label' => $name,
                     'sanitizer' => 'text',
-                    'tooltip' => sprintf(_x('Enter the license key here. Your license can be found on the %s page of your Nifty Plugins account.', 'License Keys (admin-text)', 'site-reviews'),
-                        sprintf('<a href="https://niftyplugins.com/account/license-keys/" target="_blank">%s</a>', _x('License Keys', 'admin-text', 'site-reviews'))
+                    'tooltip' => sprintf(_x('Enter the license key here. Your license can be found on the %s page of your Nifty Plugins account.', 'link to License Keys page (admin-text)', 'site-reviews'),
+                        glsr_premium_link('license-keys')
                     ),
                     'type' => 'secret',
                 ],
@@ -177,15 +177,10 @@ final class Application extends Container implements PluginContract
     }
 
     /**
-     * This is triggered on "plugins_loaded" by "site-reviews/addon/register".
+     * This is triggered on "plugins_loaded:-10" by "site-reviews/premium/register".
      */
-    public function register(string $addon, bool $isAuthorized = true): void
+    public function register(string $addon): void
     {
-        $retired = [ // @compat these addons have been retired
-            'site-reviews-gamipress',
-            'site-reviews-woocommerce',
-        ];
-        $premium = glsr()->filterArray('site-reviews-premium', []);
         try {
             $reflection = new \ReflectionClass($addon); // make sure that the class exists
         } catch (\ReflectionException $e) {
@@ -199,29 +194,30 @@ final class Application extends Container implements PluginContract
             glsr_log()->error("Attempted to register an invalid addon [$addonId].");
             return;
         }
-        if (in_array($addonId, $retired)) {
-            $this->append('retired', $addon);
-            return;
-        }
+        $premium = glsr()->filterArray('site-reviews-premium', []);
         if (in_array($addonId, $premium)
             && !str_starts_with($reflection->getNamespaceName(), 'GeminiLabs\SiteReviews\Premium')) {
             $this->append('site-reviews-premium', $addon);
             return;
         }
-        $pluginData = get_file_data($file, ['update_url' => 'Update URI'], 'plugin');
-        if (empty($pluginData['update_url'])) {
-            $this->append('compat', $file, $addonId); // this addon needs updating in compatibility mode.
-        }
         if (true === $reflection->getConstant('LICENSED')) {
             $this->append('licensed', $addon, $addonId);
         }
-        if (true === $isAuthorized) {
-            $this->addons[$addonId] = $addon;
-            $this->singleton($addon); // this goes first!
-            $this->alias($addonId, $this->make($addon)); // @todo for some reason we have to link an alias to an instantiated class
-            $instance = $this->make($addon)->init();
-            $this->append('addons', $instance->version, $instance->id);
+        $pluginData = get_file_data($file, [
+            'glsr_version_required' => 'GLSR requires at least',
+            'glsr_version_unsupported' => 'GLSR unsupported version',
+        ], 'plugin');
+        if (version_compare($this->version, $pluginData['glsr_version_required'], '<')) {
+            return; // This addon requires a newer version of Site Reviews
         }
+        if (version_compare($this->version, $pluginData['glsr_version_unsupported'], '>=')) {
+            return; // This addon requires an older version of Site Reviews
+        }
+        $this->addons[$addonId] = $addon;
+        $this->singleton($addon); // this goes first!
+        $this->alias($addonId, $this->make($addon));
+        $instance = $this->make($addon)->init();
+        $this->append('addons', $instance->version, $instance->id);
     }
 
     /**
@@ -250,5 +246,21 @@ final class Application extends Container implements PluginContract
         }
         $settings = Arr::unflatten($this->settings);
         return Arr::get($settings, $path);
+    }
+
+    public function shortcode(?string $shortcode): ?ShortcodeContract
+    {
+        if (empty($shortcode)) {
+            return null;
+        }
+        $shortcodes = glsr()->retrieveAs('array', 'shortcodes');
+        $className = $shortcodes[$shortcode] ?? '';
+        if (!class_exists($className)) {
+            return null;
+        }
+        if (!(new \ReflectionClass($className))->implementsInterface(ShortcodeContract::class)) {
+            return null;
+        }
+        return $this->make($className);
     }
 }

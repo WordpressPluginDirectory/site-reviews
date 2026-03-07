@@ -2,7 +2,6 @@
 
 namespace GeminiLabs\SiteReviews\Addons;
 
-use GeminiLabs\SiteReviews\Contracts\PluginContract;
 use GeminiLabs\SiteReviews\Controllers\AbstractController;
 use GeminiLabs\SiteReviews\Database\OptionManager;
 use GeminiLabs\SiteReviews\Helpers\Arr;
@@ -11,7 +10,6 @@ use GeminiLabs\SiteReviews\Helpers\Str;
 use GeminiLabs\SiteReviews\Install;
 use GeminiLabs\SiteReviews\Modules\Assets\AssetCss;
 use GeminiLabs\SiteReviews\Modules\Assets\AssetJs;
-use GeminiLabs\SiteReviews\Modules\Html\Builder;
 use GeminiLabs\SiteReviews\Modules\Html\Template;
 use GeminiLabs\SiteReviews\Modules\Translation;
 use GeminiLabs\SiteReviews\Modules\Translator;
@@ -31,22 +29,6 @@ abstract class Controller extends AbstractController
     }
 
     /**
-     * The CSS registered here will not load in the site editor unless it contains the .wp-block selector.
-     *
-     * @see https://github.com/WordPress/gutenberg/issues/41821
-     *
-     * @action enqueue_block_editor_assets
-     */
-    public function enqueueBlockAssets(): void
-    {
-        $this->registerAsset('css', ['suffix' => 'blocks']);
-        $this->registerAsset('js', [
-            'dependencies' => [glsr()->id.'/blocks'],
-            'suffix' => 'blocks',
-        ]);
-    }
-
-    /**
      * @action wp_enqueue_scripts
      */
     public function enqueuePublicAssets(): void
@@ -60,27 +42,15 @@ abstract class Controller extends AbstractController
     }
 
     /**
-     * @param array $actions
-     *
      * @filter plugin_action_links_{$this->app()->id}/{$this->app()->id}.php
      */
-    public function filterActionLinks($actions): array
+    public function filterActionLinks(array $links): array
     {
-        $actions = Arr::consolidate($actions);
+        $actions = [];
         if (glsr()->hasPermission('settings') && !empty($this->app()->config('settings'))) {
-            $actions['settings'] = glsr(Builder::class)->a([
-                'href' => glsr_admin_url('settings', 'addons', $this->app()->slug),
-                'text' => _x('Settings', 'admin-text', 'site-reviews'),
-            ]);
+            $actions['settings'] = glsr_admin_link("settings.addons.{$this->app()->slug}", _x('Settings', 'admin-text', 'site-reviews'));
         }
-        if (glsr()->hasPermission('documentation')) {
-            $actions['documentation'] = glsr(Builder::class)->a([
-                'data-expand' => "#addon-{$this->app()->id}",
-                'href' => glsr_admin_url('documentation', 'addons'),
-                'text' => _x('Help', 'admin-text', 'site-reviews'),
-            ]);
-        }
-        return $actions;
+        return array_merge($actions, $links);
     }
 
     /**
@@ -295,6 +265,28 @@ abstract class Controller extends AbstractController
     }
 
     /**
+     * @filter plugin_row_meta
+     */
+    public function filterRowMeta(array $links, string $file): array
+    {
+        if ($file !== $this->app()->basename) {
+            return $links;
+        }
+        $actions = [];
+        if (glsr()->hasPermission('documentation')) {
+            $actions['documentation'] = glsr_admin_link('documentation.addons', [
+                'data-expand' => "#addon-{$this->app()->id}",
+                'text' => _x('Documentation', 'admin-text', 'site-reviews'),
+            ]);
+        }
+        $actions['support'] = glsr_premium_link('support', [
+            'aria-label' => _x('Visit premium customer support', 'admin-text', 'site-reviews'),
+            'text' => _x('Support', 'admin-text', 'site-reviews'),
+        ]);
+        return array_merge($links, $actions);
+    }
+
+    /**
      * @filter site-reviews/settings
      */
     public function filterSettings(array $settings): array
@@ -376,13 +368,6 @@ abstract class Controller extends AbstractController
     /**
      * @action init
      */
-    public function registerBlocks(): void
-    {
-    }
-
-    /**
-     * @action init
-     */
     public function registerLanguages(): void
     {
         $path = plugin_basename($this->app()->path());
@@ -424,35 +409,6 @@ abstract class Controller extends AbstractController
         ]);
     }
 
-    /**
-     * @action plugins_loaded
-     */
-    public function runIntegrations(): void
-    {
-        $dir = $this->app()->path('plugin/Integrations');
-        if (!is_dir($dir)) {
-            return;
-        }
-        $iterator = new \DirectoryIterator($dir);
-        $namespace = (new \ReflectionClass($this->app()))->getNamespaceName();
-        foreach ($iterator as $fileinfo) {
-            if (!$fileinfo->isDir() || $fileinfo->isDot()) {
-                continue;
-            }
-            try {
-                $hooks = "{$namespace}\Integrations\\{$fileinfo->getBasename()}\Hooks";
-                $reflect = new \ReflectionClass($hooks);
-                if ($reflect->isInstantiable()) {
-                    glsr()->singleton($hooks);
-                    glsr($hooks)->run();
-                    glsr($hooks)->runDeferred();
-                }
-            } catch (\ReflectionException $e) {
-                glsr_log()->error($e->getMessage());
-            }
-        }
-    }
-
     protected function buildAssetArgs(string $ext, array $args = []): array
     {
         $args = wp_parse_args($args, [
@@ -484,10 +440,13 @@ abstract class Controller extends AbstractController
     {
         $defer = Arr::get($args, 'defer', false);
         if ($args = $this->buildAssetArgs($extension, $args)) {
-            $function = 'js' === $extension
-                ? 'wp_enqueue_script'
-                : 'wp_enqueue_style';
-            call_user_func_array($function, $args);
+            if ('js' === $extension) {
+                call_user_func_array('wp_register_script', $args);
+                call_user_func('wp_enqueue_script', $args[0]);
+            } else {
+                call_user_func_array('wp_register_style', $args);
+                call_user_func('wp_enqueue_style', $args[0]);
+            }
             if (wp_validate_boolean($defer)) {
                 wp_script_add_data($args[0], 'strategy', 'defer');
             }

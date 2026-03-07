@@ -7,6 +7,7 @@ use GeminiLabs\League\Csv\Statement;
 use GeminiLabs\League\Csv\TabularDataReader;
 use GeminiLabs\SiteReviews\Commands\CreateReview;
 use GeminiLabs\SiteReviews\Database;
+use GeminiLabs\SiteReviews\Database\ReviewManager;
 use GeminiLabs\SiteReviews\Database\Tables\TableTmp;
 use GeminiLabs\SiteReviews\Defaults\ImportResultDefaults;
 use GeminiLabs\SiteReviews\Helpers\Cast;
@@ -29,13 +30,7 @@ class ImportManager
         wp_raise_memory_limit('admin');
         wp_defer_term_counting(true);
         wp_suspend_cache_invalidation(true);
-        $this->prepare(); // create a temporary table for importing
-        $reader = Reader::createFromPath($this->tempFilePath());
-        $reader->setHeaderOffset(0);
-        $records = Statement::create()
-            ->offset(max(0, $offset))
-            ->limit(max(1, $limit))
-            ->process($reader);
+        $records = $this->records($limit, $offset);
         $result = glsr(ImportResultDefaults::class)->defaults();
         foreach ($records as $values) {
             $request = new Request($values);
@@ -54,7 +49,7 @@ class ImportManager
         }
         wp_defer_term_counting(false);
         wp_suspend_cache_invalidation(false);
-        unset($reader, $records);
+        unset($records);
         return glsr(ImportResultDefaults::class)->restrict($result);
     }
 
@@ -71,12 +66,12 @@ class ImportManager
         $result = glsr()->filterArray('import/reviews/attachments', [], $limit, $offset);
         wp_suspend_cache_invalidation(false);
         return glsr(ImportResultDefaults::class)->restrict($result);
-
     }
 
     public function importedReview(Request $request): ?Review
     {
-        $submittedHash = md5(maybe_serialize($request->toArray()));
+        $submitted = glsr(ReviewManager::class)->submittedMeta($request);
+        $submittedHash = md5(maybe_serialize($submitted));
         $sql = "
             SELECT p.ID
             FROM table|posts AS p
@@ -99,6 +94,17 @@ class ImportManager
     public function prepare(): void
     {
         glsr(TableTmp::class)->create(); // create a temporary table for importing
+    }
+
+    public function records(int $limit = 1, int $offset = 0): TabularDataReader
+    {
+        $this->prepare();
+        $reader = Reader::createFromPath($this->tempFilePath());
+        $reader->setHeaderOffset(0);
+        return Statement::create()
+            ->offset(max(0, $offset))
+            ->limit(max(1, $limit))
+            ->process($reader);
     }
 
     public function tempFilePath(): string

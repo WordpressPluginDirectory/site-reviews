@@ -10,16 +10,82 @@ use GeminiLabs\SiteReviews\Review;
 defined('ABSPATH') || exit;
 
 /**
+ * This fixes the "Product Reviews Style" setting in the Salient theme when
+ * the option is set to "Submission Form Off Canvas".
+ *
+ * @see https://themenectar.com/salient/
+ */
+add_action('wp_head', function () {
+    if (!class_exists('WooCommerce') || !function_exists('is_product')) {
+        return;
+    }
+    if ('Salient' !== wp_get_theme(get_template())->get('Name')) {
+        return;
+    }
+    if ('yes' !== get_option('woocommerce_enable_reviews', 'yes')) {
+        return;
+    }
+    if (!glsr_get_option('integrations.woocommerce.enabled', false, 'bool')) {
+        return;
+    }
+    if (is_product()) {
+        add_filter('woocommerce_reviews_title', function ($title, $count) {
+            return $title.(0 === $count ? apply_filters('nectar_woocommerce_no_reviews_title', '') : '');
+        }, 10, 2);
+        printf('<style>%s</style>',
+            '.wp-theme-salient.single-product #reviews[data-integration="site-reviews"] #comments .commentlist{'.
+                'width:100%;'.
+            '}'.
+            '@media only screen and (min-width:1000px){'.
+                '.wp-theme-salient.single-product #reviews[data-integration="site-reviews"] #comments .commentlist{'.
+                    'flex:1;'.
+                    'padding-left:7.5%;'.
+                '}'.
+            '}'
+        );
+    }
+});
+
+/**
  * This fixes the Site Reviews settings when the User Activity Log plugin is enabled.
  * 
  * @see https://wordpress.org/support/topic/this-breaks-the-wordpress-color-picker/
  */
 add_action('admin_enqueue_scripts', function () {
-    $screen = get_current_screen();
+    $screen = glsr_current_screen();
     if (str_starts_with($screen->post_type, glsr()->post_type)) {
         wp_dequeue_script('chats-js');
     }
 }, 20);
+
+/**
+ * This fixes the "Show reviews count" option in the WoodMart theme.
+ *
+ * @see https://woodmart.xtemos.com/
+ */
+function glsr_fix_woodmart_product_reviews_count_option($html): string
+{
+    global $product;
+    if (!function_exists('woodmart_get_opt') || !function_exists('woodmart_show_reviews_count')) {
+        return $html;
+    }
+    if (!is_a($product, 'WC_Product')) {
+        return $html;
+    }
+    if (!glsr_get_option('integrations.woocommerce.enabled', false, 'bool')) {
+        return $html;
+    }
+    if (str_contains($html, 'wd-star-rating')) {
+        return $html;
+    }
+    if (woodmart_get_opt('show_reviews_count')) {
+        ob_start();
+        woodmart_show_reviews_count();
+        $html .= ob_get_clean();
+    }
+    return sprintf('<div class="wd-star-rating">%s</div>', $html);
+}
+add_filter('woocommerce_product_get_rating_html', 'glsr_fix_woodmart_product_reviews_count_option', 30);
 
 /**
  * This fixes the button classes in themes using the Avia framework.
@@ -70,18 +136,17 @@ add_action('edit_form_top', function ($post) {
  */
 function glsr_filter_bootstrap_pagination_link(array $link, array $args, BuilderContract $builder): array
 {
-    $args['class'] = 'page-link';
-    if ('current' === $link['type']) {
-        $class = 'page-item active';
-        $text = $builder->span($args);
+    if (empty($link['link'])) {
+        return $link;
     }
-    if ('dots' === $link['type']) {
-        $text = $builder->span($args);
-    }
-    $link['link'] = $builder->li([
-        'text' => $text ?? $builder->a($args),
-        'class' => $class ?? 'page-item',
+    $link = wp_parse_args($link, [
+        'tag' => 'span',
+        'type' => 'page',
     ]);
+    $args['class'] = 'page-link';
+    $class = 'current' === $link['type'] ? 'page-item active' : 'page-item';
+    $text = $builder->build($link['tag'], $args);
+    $link['link'] = $builder->li(compact('class', 'text'));
     return $link;
 }
 add_filter('site-reviews/paginate_links', function (string $links, array $args): string {
@@ -92,7 +157,7 @@ add_filter('site-reviews/paginate_links', function (string $links, array $args):
     add_filter('site-reviews/paginate_link', 'glsr_filter_bootstrap_pagination_link', 10, 3);
     $links = (new Paginate($args))->links();
     remove_filter('site-reviews/paginate_link', 'glsr_filter_bootstrap_pagination_link');
-    $links = wp_list_pluck($links, 'link');
+    $links = array_filter(wp_list_pluck($links, 'link'));
     return implode("\n", $links);
 }, 10, 2);
 

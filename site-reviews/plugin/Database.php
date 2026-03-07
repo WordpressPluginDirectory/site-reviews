@@ -219,35 +219,25 @@ class Database
         return $result;
     }
 
-    /**
-     * An array of values if $single is false.
-     * The value of the meta field if $single is true.
-     * False for an invalid $post_id (non-numeric, zero, or negative value).
-     * An empty string if a valid but non-existing post ID is passed.
-     *
-     * @return mixed
-     */
-    public function meta(int $postId, string $key, bool $single = true)
+    public function posts(array $args = []): array
     {
-        $key = Str::prefix($key, '_');
-        $postId = Cast::toInt($postId);
-        return get_post_meta($postId, $key, $single);
-    }
-
-    /**
-     * The new meta field ID if a field with the given key didn't exist and was therefore added.
-     * True on successful update. False on failure or if the value passed to the function
-     * is the same as the one that is already in the database.
-     *
-     * @param mixed $value
-     *
-     * @return int|bool
-     */
-    public function metaSet(int $postId, string $key, $value)
-    {
-        $key = Str::prefix($key, '_');
-        $postId = Cast::toInt($postId);
-        return update_metadata('post', $postId, $key, $value); // update_metadata works with revisions
+        $args = wp_parse_args($args, [
+            'order' => 'ASC',
+            'orderby' => 'title',
+            'post_type' => glsr()->prefix.'assigned_posts',
+            'posts_per_page' => 50,
+            'search_columns' => [
+                'post_title',
+            ],
+            'suppress_filters' => true,
+        ]);
+        $posts = get_posts($args);
+        $results = [];
+        foreach ($posts as $post) {
+            $results[$post->ID] = sanitize_text_field($post->post_title) ?: _x('(no title)', 'admin-text', 'site-reviews');
+        }
+        natcasesort($results);
+        return $results;
     }
 
     public function searchAssignedPosts(string $searchTerm): SearchAssignedPosts
@@ -302,17 +292,20 @@ class Database
     public function users(array $args = []): array
     {
         $args = wp_parse_args($args, [
-            'fields' => ['ID', 'display_name', 'user_nicename'],
+            'fields' => ['ID', 'display_name', 'user_login', 'user_nicename'],
             'number' => 50, // only get the first 50 users!
             'orderby' => 'display_name',
+            'search' => '',
+            'search_columns' => ['display_name', 'user_nicename'],
+            'search_wild' => '',
         ]);
+        if (!empty($args['search_wild'])) {
+            $args['search'] = "*{$args['search_wild']}*";
+        }
         $results = [];
         $users = get_users($args);
         foreach ($users as $user) {
-            $name = glsr(Sanitizer::class)->sanitizeUserName(
-                $user->display_name,
-                $user->user_nicename
-            );
+            $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             $results[$user->ID] = $name;
         }
         return $results;
