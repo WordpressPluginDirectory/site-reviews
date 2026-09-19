@@ -14,33 +14,14 @@ use GeminiLabs\SiteReviews\Shortcodes\SiteReviewsSummaryShortcode;
 
 class EnqueueAdminAssets extends AbstractCommand
 {
-    public array $pointers;
-
-    public function __construct()
-    {
-        $this->generatePointers([
-            [
-                'content' => _x('You can pin exceptional reviews so that they are always shown first.', 'admin-text', 'site-reviews'),
-                'id' => 'glsr-pointer-pinned',
-                'target' => '#misc-pub-pinned',
-                'title' => _x('Pin Your Reviews', 'admin-text', 'site-reviews'),
-            ],
-        ]);
-    }
-
     public function enqueueScripts(): void
     {
-        if (!empty($this->pointers)) {
-            wp_enqueue_script('wp-pointer');
-        }
         wp_register_script(
             glsr()->id.'/admin',
             glsr()->url('assets/scripts/'.glsr()->id.'-admin.js'),
             $this->getDependencies(),
             glsr()->version,
-            [
-                'strategy' => 'defer',
-            ]
+            ['strategy' => 'defer']
         );
         wp_enqueue_script(glsr()->id.'/admin');
         wp_add_inline_script(glsr()->id.'/admin', $this->inlineScript(), 'before');
@@ -49,14 +30,11 @@ class EnqueueAdminAssets extends AbstractCommand
 
     public function enqueueStyles(): void
     {
-        if (!empty($this->pointers)) {
-            wp_enqueue_style('wp-pointer');
-        }
         wp_enqueue_style('wp-color-picker');
         wp_register_style(
             glsr()->id.'/admin',
             glsr()->url('assets/styles/admin/admin.css'),
-            ['wp-list-reusable-blocks'], // load the :root admin theme colors
+            ['wp-list-reusable-blocks'], // loads the :root admin theme colors
             glsr()->version
         );
         wp_enqueue_style(glsr()->id.'/admin');
@@ -113,17 +91,19 @@ class EnqueueAdminAssets extends AbstractCommand
                 'toggle-status' => wp_create_nonce('toggle-status'),
                 'toggle-verified' => wp_create_nonce('toggle-verified'),
             ],
-            'pointers' => $this->pointers,
             'text' => [
                 'cancel' => _x('Cancel', 'admin-text', 'site-reviews'),
                 'cancelling' => _x('Cancelling, please wait...', 'admin-text', 'site-reviews'),
+                /* translators: %s: maximum file upload size */
                 'import_error' => sprintf(_x('Your server restricts file uploads to less than %s in size.', 'admin-text', 'site-reviews'),
                     (string) size_format(wp_max_upload_size())
                 ),
                 'rollback_error' => _x('Rollback failed', 'admin-text', 'site-reviews'),
                 'searching' => _x('Searching...', 'admin-text', 'site-reviews'),
-                'system_info_error' => _x('Site Reviews was unable to fetch the System Info because your server threw an error: %s %s', 'admin-text', 'site-reviews'),
+                /* translators: %1$s: HTTP response status code, %2$s: response error message */
+                'system_info_error' => _x('Site Reviews was unable to fetch the System Info because your server threw an error: %1$s %2$s', 'admin-text', 'site-reviews'),
                 'system_info_failed' => _x('Unable to fetch the System Info.', 'admin-text', 'site-reviews'),
+                /* translators: %s: Site Health Info page URL */
                 'system_info_500' => sprintf(_x('Site Reviews was unable to fetch the System Info because WordPress crashed when getting the <a href="%s">Site Health Info</a>.', 'admin-text', 'site-reviews'),
                     admin_url('site-health.php?tab=debug')
                 ),
@@ -142,7 +122,7 @@ class EnqueueAdminAssets extends AbstractCommand
     {
         $script = 'window.hasOwnProperty("GLSR")||(window.GLSR={});';
         foreach ($variables as $key => $value) {
-            $script .= sprintf('GLSR.%s=%s;', $key, (string) wp_json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            $script .= sprintf('GLSR.%s=%s;', $key, (string) wp_json_encode($value, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE));
         }
         $pattern = '/\"([a-zA-Z]+)\"(:[{\[\"])/'; // remove unnecessary quotes surrounding object keys
         $optimizedScript = preg_replace($pattern, '$1$2', $script);
@@ -156,40 +136,6 @@ class EnqueueAdminAssets extends AbstractCommand
             'jquery', 'jquery-ui-sortable', 'underscore', 'wp-color-picker', 'wp-util',
         ]);
         return $dependencies;
-    }
-
-    protected function generatePointer(array $pointer): array
-    {
-        return [
-            'id' => $pointer['id'],
-            'options' => [
-                'content' => "<h3>{$pointer['title']}</h3>".wpautop($pointer['content']),
-                'position' => $pointer['position'],
-            ],
-            'screen' => $pointer['screen'],
-            'target' => $pointer['target'],
-        ];
-    }
-
-    /**
-     * @param array[] $args
-     */
-    protected function generatePointers(array $args): void
-    {
-        $dismissed = get_user_meta(get_current_user_id(), 'dismissed_wp_pointers', true);
-        $dismissed = explode(',', (string) $dismissed);
-        $pointers = [];
-        foreach ($args as $pointer) {
-            $pointer = glsr(PointerDefaults::class)->restrict($pointer);
-            if ($pointer['screen'] !== glsr_current_screen()->id) {
-                continue;
-            }
-            if (in_array($pointer['id'], $dismissed)) {
-                continue;
-            }
-            $pointers[] = $this->generatePointer($pointer);
-        }
-        $this->pointers = $pointers;
     }
 
     protected function isCurrentScreen(): bool
@@ -206,11 +152,14 @@ class EnqueueAdminAssets extends AbstractCommand
             'site-editor',
             'widgets',
         ];
-        if ('admin' === $screen->base && str_starts_with(filter_input(INPUT_GET, 'import'), glsr()->post_type)) {
+        if ('admin' === $screen->base && str_starts_with((string) filter_input(\INPUT_GET, 'import'), glsr()->post_type)) {
             return true;
         }
-        return str_starts_with($screen->post_type, glsr()->post_type)
+        $isCurrentScreen = str_starts_with($screen->post_type, glsr()->post_type)
             || in_array($screen->id, $screenIds)
             || 'post' === $screen->base;
+        // A screen that provides its own editor app (the premium form
+        // editor) opts out of the admin bundle here.
+        return glsr()->filterBool('enqueue/admin/screen', $isCurrentScreen, $screen);
     }
 }

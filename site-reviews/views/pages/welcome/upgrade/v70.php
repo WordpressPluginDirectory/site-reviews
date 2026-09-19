@@ -9,11 +9,10 @@
     </h3>
     <div id="upgrade-v7_0_0" class="inside">
 
-        <div class="glsr-notice-inline components-notice is-warning">
-            <p class="components-notice__content">
-                Site Reviews should automatically migrate itself after updating to v7.0. However, if you are experiencing problems after updating, you may need to manually run the <a href="<?php echo esc_url(glsr_admin_url('tools', 'general')); ?>" data-expand="#tools-migrate-plugin">Migrate Plugin</a> tool.
-            </p>
-        </div>
+        <?php echo wp_get_admin_notice(
+            'Site Reviews should automatically migrate itself after updating to v7.0. However, if you are experiencing problems after updating, you may need to manually run the <a href="'.esc_url(glsr_admin_url('tools', 'general')).'" data-expand="#tools-migrate-plugin">Migrate Plugin</a> tool.',
+            ['type' => 'warning', 'additional_classes' => ['inline']]
+        ); ?>
 
         <h2>Changes to IP Address detection</h2>
         <p><em>Likelihood Of Impact: <span class="impact-high">High</span></em></p>
@@ -55,6 +54,10 @@
             <li>
                 <p><strong>The <code>site-reviews/builder/&lt;field_type&gt;</code> filter hook has been removed.</strong></p>
                 <p>If you were previously using this hook to change the PHP class used for the field element, you should change it to: <code>site-reviews/field/element/&lt;field_element_type&gt;</code>.</p>
+            </li>
+            <li>
+                <p><strong>The <code>site-reviews/review-form/fields/normalized</code> filter hook has been removed.</strong></p>
+                <p>If you were previously using this hook, you should change it to: <code>site-reviews/review-form/fields/all</code>.</p>
             </li>
         </ol>
 

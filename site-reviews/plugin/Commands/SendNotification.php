@@ -1,29 +1,37 @@
 <?php
 
-namespace GeminiLabs\SiteReviews\Modules;
+namespace GeminiLabs\SiteReviews\Commands;
 
 use GeminiLabs\SiteReviews\Database\OptionManager;
 use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Modules\Discord;
+use GeminiLabs\SiteReviews\Modules\Email;
 use GeminiLabs\SiteReviews\Modules\Html\TemplateTags;
+use GeminiLabs\SiteReviews\Modules\Sanitizer;
+use GeminiLabs\SiteReviews\Modules\Slack;
 use GeminiLabs\SiteReviews\Review;
 
-class Notification
+class SendNotification extends AbstractCommand
 {
-    /**
-     * @var Review
-     */
-    protected $review;
+    public Review $review;
+    public array $types;
 
-    protected array $types = [];
-
-    public function __construct()
+    public function __construct(Review $review)
     {
+        $this->review = $review;
         $this->types = glsr_get_option('general.notifications', [], 'array');
     }
 
-    public function send(Review $review): void
+    public function handle(): void
     {
-        $this->review = $review;
+        if (!$this->review->isValid()) {
+            $this->fail();
+            return;
+        }
+        if (empty($this->types)) {
+            $this->fail();
+            return;
+        }
         if (!empty(array_intersect(['admin', 'author', 'custom'], $this->types))) {
             $this->sendToEmail();
         }
@@ -37,31 +45,15 @@ class Notification
 
     protected function buildEmail(): array
     {
+        $includedTags = Arr::consolidate(glsr()->settings['settings.general.notification_message']['tags'] ?? []);
+        $templateTags = glsr(TemplateTags::class)->tags($this->review, [
+            'include' => array_keys($includedTags),
+        ]);
         return [
+            'message' => trim(glsr_get_option('general.notification_message', '', 'string')),
             'to' => $this->recipients(),
             'subject' => $this->subject(true),
-            'template' => 'default',
-            'template-tags' => glsr(TemplateTags::class)->tags($this->review, [
-                'include' => [
-                    'approve_url',
-                    'edit_url',
-                    'review_assigned_links',
-                    'review_assigned_posts',
-                    'review_assigned_terms',
-                    'review_assigned_users',
-                    'review_author',
-                    'review_categories',
-                    'review_content',
-                    'review_email',
-                    'review_id',
-                    'review_ip',
-                    'review_link',
-                    'review_rating',
-                    'review_title',
-                    'site_title',
-                    'site_url',
-                ],
-            ]),
+            'template-tags' => $templateTags,
         ];
     }
 
@@ -120,12 +112,14 @@ class Notification
 
     protected function subject(bool $withPostAssignment = false): string
     {
-        $siteTitle = wp_specialchars_decode(glsr(OptionManager::class)->wp('blogname'), ENT_QUOTES);
+        $siteTitle = wp_specialchars_decode(glsr(OptionManager::class)->wp('blogname'), \ENT_QUOTES);
+        /* translators: %s: star rating */
         $title = sprintf(__('New %s-star review', 'site-reviews'), $this->review->rating);
         if ($withPostAssignment) {
             $postAssignments = glsr(TemplateTags::class)->tagReviewAssignedPosts($this->review);
             if (!empty($postAssignments)) {
-                $title = sprintf(__('New %s-star review of %s', 'site-reviews'), $this->review->rating, $postAssignments);
+                /* translators: %1$s: star rating, %2$s: assigned post titles */
+                $title = sprintf(__('New %1$s-star review of %2$s', 'site-reviews'), $this->review->rating, $postAssignments);
             }
         }
         $title = sprintf('[%s] %s', $siteTitle, $title);

@@ -9,11 +9,10 @@
     </h3>
     <div id="upgrade-v8_0_0" class="inside">
 
-        <div class="glsr-notice-inline components-notice is-warning">
-            <p class="components-notice__content">
-                Site Reviews should automatically migrate itself after updating to v8.0. However, if you are experiencing problems after updating, you may need to manually run the <?php echo glsr_admin_link('tools.general', 'Migrate Plugin', '#tools-migrate-plugin'); ?> tool.
-            </p>
-        </div>
+        <?php echo wp_get_admin_notice(
+            'Site Reviews should automatically migrate itself after updating to v8.0. However, if you are experiencing problems after updating, you may need to manually run the '.glsr_admin_link('tools.general', 'Migrate Plugin', '#tools-migrate-plugin').' tool.',
+            ['type' => 'warning', 'additional_classes' => ['inline']]
+        ); ?>
 
         <h2>Changes to CSS</h2>
         <p><em>Likelihood Of Impact: <span class="impact-high">High</span></em></p>
@@ -83,8 +82,8 @@
                 <p>The first argument of the hook was previously the Post ID of the review but it is now the $review object.</p>
             </li>
             <li>
-                <p><strong>The <code>site-reviews/review-form/fields/normalized</code> filter hook has been removed.</strong></p>
-                <p>If you were previously using this hook, you should change it to: <code>site-reviews/review-form/fields/all</code>.</p>
+                <p><strong>The <code>site-reviews/review-form/order</code> filter hook has been removed.</strong></p>
+                <p>If you were previously using this hook, you should change it to: <code>site-reviews/review-form/fields/order</code>.</p>
             </li>
             <li>
                 <p><strong>The <code>site-reviews/summary/counts</code> filter hook has been removed.</strong></p>

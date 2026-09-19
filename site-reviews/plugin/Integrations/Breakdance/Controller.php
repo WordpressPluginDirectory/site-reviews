@@ -65,9 +65,9 @@ class Controller extends AbstractController
             'assigned_users' => 'assigned_users',
             'review_authors' => 'author',
         ];
-        $option = (string) filter_input(INPUT_POST, 'postType');
+        $option = (string) filter_input(\INPUT_POST, 'postType');
         $option = $pseudoPostTypeMap[$option] ?? Str::removePrefix($option, glsr()->prefix);
-        $search = filter_input(INPUT_POST, 'search');
+        $search = filter_input(\INPUT_POST, 'search');
         $results = glsr(ShortcodeOptionManager::class)->get($option, compact('search'));
         $replacements = [ // the post_chooser control requires integer keys
             'post_id' => -10,
@@ -88,7 +88,7 @@ class Controller extends AbstractController
             });
         }
         wp_send_json_success($data, 200);
-        exit; // @phpstan-ignore-line
+        glsr_exit(); // @phpstan-ignore-line
     }
 
     /**
@@ -143,14 +143,6 @@ class Controller extends AbstractController
             true // excludeFromElementStudio
         );
         \Breakdance\ElementStudio\registerSaveLocation(
-            "{$pluginDir}/assets/breakdance/macros",
-            'GLSR_Breakdance',
-            'macro',
-            'Site Reviews Macros',
-            true, // onlyForAdvancedUsers
-            true // excludeFromElementStudio
-        );
-        \Breakdance\ElementStudio\registerSaveLocation(
             "{$pluginDir}/assets/breakdance/presets",
             'GLSR_Breakdance',
             'preset',
@@ -187,7 +179,7 @@ class Controller extends AbstractController
     public function registerRoutes(): void
     {
         return; // We can't use this yet...
-        // $input = filter_input_array(INPUT_POST, [ // @phpstan-ignore-line
+        // $input = filter_input_array(INPUT_POST, [
         //     'requestData' => [
         //         'context' => [
         //             'filter' => fn ($value) => is_numeric($value)
@@ -304,7 +296,7 @@ class Controller extends AbstractController
             'assigned_users',
             'review_authors',
         ];
-        $postType = filter_input(INPUT_POST, 'postType');
+        $postType = filter_input(\INPUT_POST, 'postType');
         if (empty(array_filter($checkFor, fn ($prefix) => str_starts_with($postType, $prefix)))) {
             return false;
         }

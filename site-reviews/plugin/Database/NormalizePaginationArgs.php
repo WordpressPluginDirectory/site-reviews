@@ -7,11 +7,11 @@ use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Url;
 
 /**
- * @property int    $display;
- * @property int    $page;
- * @property string $pageUrl;
- * @property array  $pageUrlParameters;
- * @property int    $per_page;
+ * @property int    $display
+ * @property int    $page
+ * @property string $pageUrl
+ * @property array  $pageUrlParameters
+ * @property int    $per_page
  */
 class NormalizePaginationArgs extends Arguments
 {
@@ -42,9 +42,10 @@ class NormalizePaginationArgs extends Arguments
         $args = glsr()->args(glsr()->retrieve(glsr()->paged_handle));
         if (!$args->isEmpty()) {
             $urlPath = Url::path($args->url);
-            $this->pageUrl = Url::path(Url::home()) === $urlPath
-                ? Url::home()
-                : Url::home($urlPath);
+            if (Url::path(Url::home()) === $urlPath) {
+                $urlPath = ''; // the home page: Url::home('') is Url::home()
+            }
+            $this->pageUrl = Url::home($urlPath);
         } elseif (empty($this->pageUrl = get_permalink())) {
             $this->pageUrl = Url::home(Url::path($_SERVER['REQUEST_URI']));
         }

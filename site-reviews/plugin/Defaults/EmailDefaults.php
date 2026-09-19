@@ -26,6 +26,7 @@ class EmailDefaults extends DefaultsAbstract
         'message' => 'text-post',
         'recipients' => 'array-string',
         'subject' => 'text',
+        'template' => 'slug',
         'template-tags' => 'array-consolidate',
     ];
 
@@ -66,7 +67,7 @@ class EmailDefaults extends DefaultsAbstract
             if (empty($email)) {
                 $email = get_bloginfo('admin_email');
             }
-            $from = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+            $from = wp_specialchars_decode(get_bloginfo('name'), \ENT_QUOTES);
             $values['from'] = sprintf('%s <%s>', $from, $email);
         }
         if (empty($values['reply-to'])) {

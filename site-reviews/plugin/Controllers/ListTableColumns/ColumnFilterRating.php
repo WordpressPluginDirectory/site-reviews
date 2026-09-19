@@ -17,6 +17,7 @@ class ColumnFilterRating extends AbstractColumnFilter
         $max = Rating::max();
         foreach (range($max, 0) as $rating) {
             $empty = $max - $rating;
+            /* translators: %s: number of stars */
             $title = _x('%s star rating', 'admin-text', 'site-reviews');
             $options[$rating] = [
                 'text' => str_repeat('★', $rating).str_repeat('☆', $empty),
@@ -38,6 +39,6 @@ class ColumnFilterRating extends AbstractColumnFilter
 
     public function value(): string
     {
-        return (string) filter_input(INPUT_GET, $this->name(), FILTER_SANITIZE_NUMBER_INT);
+        return (string) filter_input(\INPUT_GET, $this->name(), \FILTER_SANITIZE_NUMBER_INT);
     }
 }

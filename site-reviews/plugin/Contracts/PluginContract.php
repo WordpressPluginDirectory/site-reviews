@@ -13,6 +13,9 @@ use GeminiLabs\SiteReviews\Request;
  * @property string $name
  * @property string $post_type
  * @property string $slug
+ * @property string $testedTo
+ * @property string $updateUrl
+ * @property string $uri
  * @property string $version
  *
  * @method array  filterArray($hook, ...$args)
@@ -49,6 +52,10 @@ interface PluginContract
     /** @param mixed ...$args */
     public function filterArrayUnique(string $hook, ...$args): array;
 
+    public function hasPostType(): bool;
+
+    public function hookPrefix(): string;
+
     /**
      * @param mixed $fallback
      *
@@ -57,6 +64,10 @@ interface PluginContract
     public function option(string $path = '', $fallback = '', string $cast = '');
 
     public function path(string $file = '', bool $realpath = true): string;
+
+    public function settingPath(string $path = ''): string;
+
+    public function settingsPath(): string;
 
     public function render(string $view, array $data = []): void;
 

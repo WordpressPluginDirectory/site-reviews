@@ -191,6 +191,7 @@ abstract class BaseType implements \ArrayAccess, \JsonSerializable, Type
     public function setProperty($property, $value)
     {
         if (!in_array($property, $this->allowed)
+            && !str_starts_with((string) $property, '@') // JSON-LD keywords (@id) are valid on any type
             && 'UnknownType' != (new \ReflectionClass($this))->getShortName()) {
             glsr_log()->warning("{$this->getType()} does not allow the \"{$property}\" property");
             return $this;
@@ -223,7 +224,7 @@ abstract class BaseType implements \ArrayAccess, \JsonSerializable, Type
     public function toScript()
     {
         return sprintf('<script type="application/ld+json">%s</script>',
-            (string) wp_json_encode($this->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            (string) wp_json_encode($this->toArray(), \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES)
         );
     }
 

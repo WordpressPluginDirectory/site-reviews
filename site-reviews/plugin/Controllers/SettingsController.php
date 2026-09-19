@@ -36,20 +36,24 @@ class SettingsController extends AbstractController
         if (!array_key_exists('settings', $input)) {
             return $input;
         }
+        if (OptionManager::isPersisting()) {
+            // OptionManager::persist() is writing settings it already sanitized and split
+            return $input;
+        }
         $options = array_replace_recursive(glsr(OptionManager::class)->all(), [
             'settings' => $input['settings'],
         ]);
-        $options = $this->sanitizeForms($options, $input);
+        $options = $this->sanitizeMultiValue($options, $input);
         $options = $this->sanitizeGeneral($options, $input);
         $options = $this->sanitizeStrings($options, $input);
         $options = $this->sanitizeAll($options);
-        $options = glsr()->filterArray('settings/sanitize', $options, $input);
-        if (filter_input(INPUT_POST, 'option_page') === glsr()->id) {
+        $options = glsr()->filterArray('settings/sanitize', $options, $input); // fires for every write of the option, not only saves
+        if (filter_input(\INPUT_POST, 'option_page') === glsr()->id) {
             glsr(Notice::class)->addSuccess(_x('Settings updated.', 'admin-text', 'site-reviews'));
         }
         glsr(Notice::class)->store(); // store the notices before the page reloads
         glsr()->action('settings/updated', $options, $input);
-        return $options;
+        return glsr(OptionManager::class)->split($options); // splits addon settings out to their own options
     }
 
     protected function sanitizeAll(array $options): array
@@ -60,22 +64,13 @@ class SettingsController extends AbstractController
         return Arr::unflatten($options);
     }
 
-    protected function sanitizeForms(array $options, array $input): array
-    {
-        $key = 'settings.forms';
-        $inputForm = Arr::get($input, $key);
-        $multiFields = ['autofill', 'limit_assignments', 'required'];
-        foreach ($multiFields as $name) {
-            $defaultValue = Arr::get($inputForm, $name, []);
-            $options = Arr::set($options, "{$key}.{$name}", $defaultValue);
-        }
-        return $options;
-    }
-
     protected function sanitizeGeneral(array $options, array $input): array
     {
         $key = 'settings.general';
-        $inputForm = Arr::get($input, $key);
+        $inputForm = Arr::consolidate(Arr::get($input, $key));
+        if (empty($inputForm)) {
+            return $options;
+        }
         if (!$this->hasMultilingualIntegration(Arr::getAs('string', $inputForm, 'multilingual'))) {
             $options = Arr::set($options, $key.'.multilingual', '');
         }
@@ -87,8 +82,21 @@ class SettingsController extends AbstractController
             $defaultValue = Arr::get(glsr()->defaults(), $key.'.request_verification_message');
             $options = Arr::set($options, $key.'.request_verification_message', $defaultValue);
         }
-        $defaultValue = Arr::get($inputForm, 'notifications', []);
-        $options = Arr::set($options, $key.'.notifications', $defaultValue);
+        return $options;
+    }
+
+    protected function sanitizeMultiValue(array $options, array $input): array
+    {
+        foreach (glsr()->settings() as $key => $field) {
+            if ('checkbox' !== ($field['type'] ?? '') && !str_starts_with($field['sanitizer'], 'array-')) {
+                continue;
+            }
+            $section = substr($key, 0, (int) strrpos($key, '.'));
+            if (empty(Arr::consolidate(Arr::get($input, $section)))) {
+                continue;
+            }
+            $options = Arr::set($options, $key, Arr::get($input, $key, []));
+        }
         return $options;
     }
 
@@ -128,6 +136,7 @@ class SettingsController extends AbstractController
         foreach ($errors as $needle => $values) {
             if (!empty($values)) {
                 glsr(Notice::class)->addError(
+                    /* translators: %s: the missing placeholder tag */
                     sprintf(_x('You forgot to include the %s placeholder tags in your Custom Text.', 'admin-text', 'site-reviews'), "<code>$needle</code>"),
                     $values
                 );
@@ -145,13 +154,15 @@ class SettingsController extends AbstractController
         }
         if (!$integration->isActive()) {
             glsr(Notice::class)->addError(sprintf(
+                /* translators: %s: plugin name */
                 _x('Please install/activate the %s plugin to enable the integration.', 'admin-text', 'site-reviews'),
                 $integration->pluginName
             ));
             return false;
         } elseif (!$integration->isSupported()) {
             glsr(Notice::class)->addError(sprintf(
-                _x('Please update the %s plugin to v%s or greater to enable the integration.', 'admin-text', 'site-reviews'),
+                /* translators: %1$s: plugin name, %2$s: version number */
+                _x('Please update the %1$s plugin to v%2$s or greater to enable the integration.', 'admin-text', 'site-reviews'),
                 $integration->pluginName,
                 $integration->supportedVersion
             ));

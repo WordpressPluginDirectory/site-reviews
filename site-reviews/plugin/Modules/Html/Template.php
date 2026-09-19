@@ -37,13 +37,15 @@ class Template implements TemplateContract
 
     public function interpolateContext(string $text, array $context = []): string
     {
-        foreach ($context as $key => $value) {
-            $text = strtr(
-                $text,
-                array_fill_keys(['{'.$key.'}', '{{ '.$key.' }}'], $value)
-            );
+        if (empty(trim($text))) {
+            return '';
         }
-        return trim($text);
+        $replacements = [];
+        foreach ($context as $key => $value) {
+            $replacements['{'.$key.'}'] = $value;
+            $replacements['{{ '.$key.' }}'] = $value;
+        }
+        return trim(strtr($text, $replacements));
     }
 
     /**

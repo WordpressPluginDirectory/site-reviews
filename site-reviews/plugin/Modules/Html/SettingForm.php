@@ -43,7 +43,14 @@ class SettingForm extends Form
     {
         if (str_starts_with($name, 'settings.')) {
             $parts = explode('.', $name);
-            $args['group'] = count($parts) > 2 ? $parts[1] : '';
+            $group = count($parts) > 2 ? $parts[1] : '';
+            // A host's settings mount under its own slug (settings.{hostSlug}.*)
+            // but display on the addons tab (which the host relabels).
+            $addon = OptionManager::addons()[$group] ?? null;
+            if ($addon && $addon->isHost()) {
+                $group = 'addons';
+            }
+            $args['group'] = $group;
         }
         return parent::field($name, $args);
     }
@@ -82,6 +89,9 @@ class SettingForm extends Form
     protected function normalizeDependencies(): void
     {
         foreach ($this->fields() as $field) {
+            if (!$field instanceof SettingField) {
+                continue; // the fields/all filter can add any field
+            }
             $dependencies = [];
             foreach (Arr::consolidate($field->depends_on) as $path => $value) {
                 if ($triggerField = $this->offsetGet($path)) {
@@ -92,7 +102,7 @@ class SettingForm extends Form
             if (empty($dependencies)) {
                 continue;
             }
-            $field['data-depends'] = wp_json_encode($dependencies, JSON_HEX_APOS | JSON_HEX_QUOT);
+            $field['data-depends'] = wp_json_encode($dependencies, \JSON_HEX_APOS | \JSON_HEX_QUOT);
         }
     }
 
@@ -134,6 +144,9 @@ class SettingForm extends Form
      */
     protected function normalizeFieldIsHidden(FieldContract $field): void
     {
+        if (!$field instanceof SettingField) {
+            return; // only a setting field has dependencies
+        }
         $isHidden = false;
         foreach (Arr::consolidate($field->depends_on) as $path => $expectedValue) {
             $default = Arr::get(glsr()->defaults(), $path);
@@ -157,7 +170,8 @@ class SettingForm extends Form
      */
     protected function normalizeFieldValue(FieldContract $field): void
     {
-        $value = $this->session->values[$field->original_name] ?? $field->default ?? '';
+        $default = $field instanceof SettingField ? $field->default : null;
+        $value = $this->session->values[$field->original_name] ?? $default ?? '';
         $field->value = $value;
     }
 
@@ -175,6 +189,8 @@ class SettingForm extends Form
         $fields = $this->fieldsFor($group);
         $results = [];
         foreach ($fields as $field) {
+            // The section is the slug after the mount point — parts[2] for
+            // both mounts (settings.addons.{slug}.* and settings.{hostSlug}.{slug}.*).
             $parts = explode('.', $field->original_name);
             $addon = $parts[2] ?? '';
             $results[$addon] ??= '';

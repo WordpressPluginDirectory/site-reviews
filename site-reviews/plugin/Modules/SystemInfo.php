@@ -19,7 +19,7 @@ class SystemInfo implements \Stringable
 
     public function __construct()
     {
-        require_once ABSPATH.'wp-admin/includes/plugin.php';
+        require_once \ABSPATH.'wp-admin/includes/plugin.php';
     }
 
     public function __toString()
@@ -31,7 +31,7 @@ class SystemInfo implements \Stringable
     {
         $sections = [ // order is intentional
             'plugin' => 'Plugin',
-            'addon' => 'Addon',
+            'addons' => 'Addons',
             'reviews' => 'Reviews',
             'action-scheduler' => 'Action Scheduler',
             'database' => 'Database',
@@ -96,7 +96,13 @@ class SystemInfo implements \Stringable
         $details = [];
         foreach (array_keys(glsr()->retrieveAs('array', 'addons')) as $addonId) {
             if ($addon = glsr($addonId)) {
-                $details[$addon->name] = $addon->version;
+                $version = $addon->version;
+                if (method_exists($addon, 'storageKey')) {
+                    // version (upgraded-from); a hosted storageKey resolves to the host's row
+                    $stored = Arr::consolidate(get_option($addon->storageKey()));
+                    $version = sprintf('%s (%s)', $version, Arr::getAs('string', $stored, 'version_upgraded_from', '0.0.0') ?: '0.0.0');
+                }
+                $details[$addon->name] = $version;
             }
         }
         return $details;
@@ -152,7 +158,7 @@ class SystemInfo implements \Stringable
             'Last Migration Run' => glsr(Date::class)->localized(glsr(Migrate::class)->lastRun(), 'unknown'),
             'Merged Assets' => implode('/', Helper::ifEmpty($merged, ['No'])),
             'Network Activated' => Helper::ifTrue(is_plugin_active_for_network(glsr()->basename), 'Yes', 'No'),
-            'Version' => sprintf('%s (%s)', glsr()->version, glsr(OptionManager::class)->get('version_upgraded_from')),
+            'Version' => sprintf('%s (%s)', glsr()->version, glsr(OptionManager::class)->get('version_upgraded_from') ?: '0.0.0'),
         ];
     }
 
@@ -168,7 +174,6 @@ class SystemInfo implements \Stringable
             'Display Errors' => $this->ini('display_errors', 'No'),
             'File Uploads' => $this->value('wp-media.file_uploads'),
             'GD version' => $this->value('wp-media.gd_version'),
-            'Ghostscript Version' => $this->value('wp-media.ghostscript_version'),
             'Hosting Provider' => $this->hostingProvider(),
             'ImageMagick Version' => $this->value('wp-media.imagemagick_version'),
             'Intl' => Helper::ifEmpty(phpversion('intl'), 'No'),
@@ -184,11 +189,10 @@ class SystemInfo implements \Stringable
             'PHP Version' => $this->value('wp-server.php_version'),
             'Post Max Size' => $this->value('wp-server.php_post_max_size'),
             'SAPI' => $this->value('wp-server.php_sapi'),
-            'Sendmail' => $this->ini('sendmail_path'),
+            'Sendmail' => $this->maskedHomePath($this->ini('sendmail_path')),
             'Server Architecture' => $this->value('wp-server.server_architecture'),
             'Server IP Address' => Helper::serverIp(),
             'Server Software' => $this->value('wp-server.httpd_software'),
-            'SUHOSIN Installed' => $this->value('wp-server.suhosin'),
             'Upload Max Filesize' => $this->value('wp-server.upload_max_filesize'),
         ];
     }
@@ -222,7 +226,7 @@ class SystemInfo implements \Stringable
             'Page For Posts ID' => (string) get_option('page_for_posts'),
             'Page On Front ID' => (string) get_option('page_on_front'),
             'Permalink Structure' => $this->value('wp-core.permalink'),
-            'Post Stati' => implode(', ', get_post_stati()), // @phpstan-ignore-line
+            'Post Stati' => implode(', ', get_post_stati()),
             'Remote Post' => glsr(Cache::class)->getRemotePostTest(),
             'SCRIPT_DEBUG' => $this->value('wp-constants.SCRIPT_DEBUG'),
             'Show On Front' => (string) get_option('show_on_front'),
@@ -276,17 +280,17 @@ class SystemInfo implements \Stringable
     {
         $strings = ['['.strtoupper($title).']'];
         $padding = max(static::PAD, ...array_map(
-            fn ($key) => mb_strlen(html_entity_decode($key, ENT_HTML5), 'UTF-8'),
+            fn ($key) => mb_strlen(html_entity_decode($key, \ENT_HTML5), 'UTF-8'),
             array_keys($details)
         ));
         ksort($details);
         foreach ($details as $key => $value) {
-            $key = html_entity_decode((string) $key, ENT_HTML5);
+            $key = html_entity_decode((string) $key, \ENT_HTML5);
             $pad = $padding - (mb_strlen($key, 'UTF-8') - strlen($key)); // handle unicode character lengths
             $label = str_pad($key, $pad, '.');
             $strings[] = "{$label} : {$value}";
         }
-        return implode(PHP_EOL, $strings).PHP_EOL.PHP_EOL;
+        return implode(\PHP_EOL, $strings).\PHP_EOL.\PHP_EOL;
     }
 
     protected function ini(string $name, string $fallback = ''): string
@@ -295,6 +299,16 @@ class SystemInfo implements \Stringable
             return Helper::ifEmpty(ini_get($name), $fallback);
         }
         return 'ini_get() is disabled.';
+    }
+
+    /**
+     * Local environments (LocalWP, Valet, MAMP) point paths like sendmail_path
+     * into the user's home directory, which puts an OS username into a report
+     * that gets pasted in public.
+     */
+    protected function maskedHomePath(string $value): string
+    {
+        return (string) preg_replace('#(/Users/|/home/|C:\\\\Users\\\\)[^/\\\\]+#i', '~', $value);
     }
 
     protected function plugins(array $plugins): array
@@ -310,7 +324,7 @@ class SystemInfo implements \Stringable
         $config = glsr()->settings();
         $config = array_filter($config, function ($field, $key) {
             return str_starts_with($key, 'settings.licenses.') || str_ends_with($key, 'api_key') || 'secret' === ($field['type'] ?? '');
-        }, ARRAY_FILTER_USE_BOTH);
+        }, \ARRAY_FILTER_USE_BOTH);
         $keys = array_keys($config);
         $keys = array_map(fn ($key) => Str::removePrefix($key, 'settings.'), $keys);
         foreach ($settings as $key => &$value) {

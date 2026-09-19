@@ -67,7 +67,7 @@ class Discord implements WebhookContract
         if (empty($this->webhook)) {
             $result = new \WP_Error('discord', 'Discord notification was not sent: missing webhook');
         } else {
-            $result = wp_remote_post($this->webhook, [
+            $result = wp_safe_remote_post($this->webhook, [
                 'blocking' => false,
                 'body' => wp_json_encode($this->notification),
                 'headers' => [
@@ -87,6 +87,7 @@ class Discord implements WebhookContract
         if (empty($this->args['assigned_links'])) {
             return '';
         }
+        /* translators: %s: links to the posts the review is assigned to */
         return sprintf(__('Review of %s', 'site-reviews'), $this->args['assigned_links']);
     }
 
@@ -98,7 +99,7 @@ class Discord implements WebhookContract
             $this->review->content,
         ];
         $parts = array_filter($parts);
-        $description = implode(PHP_EOL.PHP_EOL, $parts);
+        $description = implode(\PHP_EOL.\PHP_EOL, $parts);
         // Discord allows a maximum of 2000 characters
         $description = trim(mb_substr($description, 0, 1999));
         if (1999 === mb_strlen($description)) {

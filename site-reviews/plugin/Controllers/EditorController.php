@@ -50,7 +50,7 @@ class EditorController extends AbstractController
     public function filterIsProtectedMeta(bool $protected, string $metaKey, ?string $metaType): bool
     {
         if ('post' === $metaType && Str::startsWith((string) $metaKey, ['_custom_', '_'.glsr()->prefix])) {
-            if ('delete-meta' === filter_input(INPUT_POST, 'action')) {
+            if ('delete-meta' === filter_input(\INPUT_POST, 'action')) {
                 return false; // allow delete but not update
             }
             if (glsr()->post_type === get_post_type()) {
@@ -72,7 +72,7 @@ class EditorController extends AbstractController
             return $messages;
         }
         $strings = glsr(UpdatedMessageDefaults::class)->defaults();
-        $restored = filter_input(INPUT_GET, 'revision');
+        $restored = filter_input(\INPUT_GET, 'revision');
         if ($revisionTitle = wp_post_revision_title(intval($restored), false)) {
             $restored = sprintf($strings['restored'], $revisionTitle);
         }
@@ -102,9 +102,11 @@ class EditorController extends AbstractController
             return;
         }
         if (Review::isReview($post) && !Review::isEditable($post)) {
+            $review = glsr(ReviewManager::class)->get($post->ID);
             glsr(Notice::class)->addWarning(sprintf(
+                /* translators: %s: the review type */
                 _x('Publicly responding to third-party %s reviews is disabled.', 'admin-text', 'site-reviews'),
-                glsr(ColumnValueType::class)->handle(glsr(ReviewManager::class)->get($post->ID))
+                $review->type()
             ));
             glsr(Template::class)->render('partials/editor/notice', [
                 'context' => [

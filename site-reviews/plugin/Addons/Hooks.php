@@ -50,14 +50,15 @@ abstract class Hooks extends AbstractHooks
             ['filterLocalizedPublicVariables', 'site-reviews/enqueue/public/localize'],
             ['filterNgettext', "ngettext_{$this->id()}", 10, 4],
             ['filterNgettextWithContext', "ngettext_with_context_{$this->id()}", 10, 5],
-            ['filterRenderView', "{$this->id()}/render/view"],
+            ['filterRenderView', "{$this->hookPrefix()}/render/view"],
             ['filterRoles', 'site-reviews/roles'],
             ['filterRowMeta', 'plugin_row_meta', 10, 2],
             ['filterSettings', 'site-reviews/settings'],
             ['filterSubsubsub', 'site-reviews/addon/subsubsub'],
             ['filterTranslationEntries', 'site-reviews/translation/entries'],
             ['filterTranslatorDomains', 'site-reviews/translator/domains'],
-            ['install', "{$this->id()}/activated"],
+            ['install', "{$this->hookPrefix()}/activated"],
+            ['migrateOptions', 'admin_init', 5],
             ['onActivation', 'admin_init'],
             ['onDeactivation', "deactivate_{$this->basename()}"],
             ['registerLanguages', 'after_setup_theme'],
@@ -74,9 +75,24 @@ abstract class Hooks extends AbstractHooks
         return $this->app()->basename;
     }
 
+    /**
+     * What the addon namespaces the hooks it FIRES with — its id standalone,
+     * its host's plus its own slug when bundled. Not interchangeable with
+     * id(), which still names the text domain, asset handles and option keys.
+     */
+    protected function hookPrefix(): string
+    {
+        return $this->app()->hookPrefix();
+    }
+
     protected function id(): string
     {
         return $this->app()->id;
+    }
+
+    protected function postType(): string
+    {
+        return $this->app()->post_type;
     }
 
     protected function slug(): string
@@ -86,6 +102,6 @@ abstract class Hooks extends AbstractHooks
 
     protected function type(): string
     {
-        return $this->app()->post_type;
+        return $this->postType(); // @compat
     }
 }

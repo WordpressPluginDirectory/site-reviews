@@ -7,7 +7,6 @@ use GeminiLabs\SiteReviews\Defaults\ReviewsDefaults;
 use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
-use GeminiLabs\SiteReviews\Helpers\Str;
 use GeminiLabs\SiteReviews\Modules\Rating;
 use GeminiLabs\SiteReviews\Review;
 
@@ -28,7 +27,7 @@ class Query
     public function export(array $args = []): array
     {
         $this->setArgs($args);
-        return glsr(Database::class)->dbGetResults($this->queryExport(), ARRAY_A);
+        return glsr(Database::class)->dbGetResults($this->queryExport(), \ARRAY_A);
     }
 
     public function hasRevisions(int $postId): bool
@@ -39,13 +38,13 @@ class Query
     public function import(array $args = []): array
     {
         $this->setArgs($args);
-        return glsr(Database::class)->dbGetResults($this->queryImport(), ARRAY_A);
+        return glsr(Database::class)->dbGetResults($this->queryImport(), \ARRAY_A);
     }
 
     public function ratings(array $args = []): array
     {
         $this->setArgs($args, $unset = ['orderby']);
-        $results = glsr(Database::class)->dbGetResults($this->queryRatings(), ARRAY_A);
+        $results = glsr(Database::class)->dbGetResults($this->queryRatings(), \ARRAY_A);
         return $this->normalizeRatings($results);
     }
 
@@ -56,7 +55,7 @@ class Query
             return [];
         }
         $this->setArgs($args, $unset = ['orderby']);
-        $results = glsr(Database::class)->dbGetResults($this->$method(), ARRAY_A);
+        $results = glsr(Database::class)->dbGetResults($this->$method(), \ARRAY_A);
         return $this->normalizeRatingsByAssignedId($results);
     }
 
@@ -67,7 +66,9 @@ class Query
             fn () => glsr(Cache::class)->get($reviewId, 'reviews')
         );
         if (!$review instanceof Review) {
-            $result = glsr(Database::class)->dbGetRow($this->queryReviews($reviewId), ARRAY_A);
+            $result = $reviewId > 0
+                ? glsr(Database::class)->dbGetRow($this->queryReviews($reviewId), \ARRAY_A)
+                : [];
             $review = new Review($result);
             glsr()->action('get/review', $review, $reviewId);
             if ($review->isValid()) {
@@ -98,7 +99,7 @@ class Query
         if (empty($reviewIds)) { // if there are no review IDs, return an empty result
             return [];
         }
-        $reviews = glsr(Database::class)->dbGetResults($this->queryReviews($reviewIds), ARRAY_A);
+        $reviews = glsr(Database::class)->dbGetResults($this->queryReviews($reviewIds), \ARRAY_A);
         foreach ($reviews as &$review) {
             $review = new Review($review);
             glsr()->action('get/review', $review, $review->ID);
@@ -192,7 +193,7 @@ class Query
         $sql = "
             SELECT m.post_id, m.meta_value
             FROM table|postmeta AS m
-            {$this->join('posts', 'INNER JOIN')}
+            INNER JOIN table|posts AS p ON (p.ID = m.post_id)
             WHERE 1=1
             AND p.post_type = %s AND m.meta_key = %s
             ORDER BY m.meta_id
@@ -202,10 +203,13 @@ class Query
         return $this->sql($sql, glsr()->post_type, glsr()->export_key);
     }
 
+    /**
+     * @see 001cf37 — COUNT(DISTINCT r.ID) because reviews can have multiple assignments
+     */
     protected function queryRatings(): string
     {
         return $this->sql("
-            SELECT {$this->ratingColumn()} AS rating, r.type, COUNT(*) AS count
+            SELECT {$this->ratingColumn()} AS rating, r.type, COUNT(DISTINCT r.ID) AS count
             FROM table|ratings AS r
             {$this->sqlJoin()}
             {$this->sqlWhere()}
@@ -213,10 +217,13 @@ class Query
         ");
     }
 
+    /**
+     * @see 001cf37 — COUNT(DISTINCT r.ID) because reviews can have multiple assignments
+     */
     public function queryRatingsForPostmeta(): string
     {
         return $this->sql("
-            SELECT apt.post_id AS ID, {$this->ratingColumn()} AS rating, r.type, COUNT(*) AS count
+            SELECT apt.post_id AS ID, {$this->ratingColumn()} AS rating, r.type, COUNT(DISTINCT r.ID) AS count
             FROM table|ratings AS r
             {$this->sqlJoin(['assigned_posts'])}
             WHERE 1=1
@@ -226,10 +233,13 @@ class Query
         ");
     }
 
+    /**
+     * @see 001cf37 — COUNT(DISTINCT r.ID) because reviews can have multiple assignments
+     */
     protected function queryRatingsForTermmeta(): string
     {
         return $this->sql("
-            SELECT att.term_id AS ID, {$this->ratingColumn()} AS rating, r.type, COUNT(*) AS count
+            SELECT att.term_id AS ID, {$this->ratingColumn()} AS rating, r.type, COUNT(DISTINCT r.ID) AS count
             FROM table|ratings AS r
             {$this->sqlJoin(['assigned_terms'])}
             WHERE 1=1
@@ -239,10 +249,13 @@ class Query
         ");
     }
 
+    /**
+     * @see 001cf37 — COUNT(DISTINCT r.ID) because reviews can have multiple assignments
+     */
     protected function queryRatingsForUsermeta(): string
     {
         return $this->sql("
-            SELECT aut.user_id AS ID, {$this->ratingColumn()} AS rating, r.type, COUNT(*) AS count
+            SELECT aut.user_id AS ID, {$this->ratingColumn()} AS rating, r.type, COUNT(DISTINCT r.ID) AS count
             FROM table|ratings AS r
             {$this->sqlJoin(['assigned_users'])}
             WHERE 1=1
@@ -308,10 +321,13 @@ class Query
         return $this->sql($sql, $reviewId);
     }
 
+    /**
+     * @see 001cf37 — COUNT(DISTINCT r.ID) because reviews can have multiple assignments
+     */
     protected function queryTotalReviews(): string
     {
         return $this->sql("
-            SELECT COUNT(*) AS count
+            SELECT COUNT(DISTINCT r.ID) AS count
             FROM table|ratings AS r
             {$this->sqlJoin()}
             {$this->sqlWhere()}

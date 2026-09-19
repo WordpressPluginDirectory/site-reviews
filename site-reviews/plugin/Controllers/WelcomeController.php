@@ -29,6 +29,7 @@ class WelcomeController extends AbstractController
     public function registerPage(): void
     {
         add_dashboard_page(
+            /* translators: %s: plugin name */
             sprintf(_x('Welcome to %s', 'admin-text', 'site-reviews'), glsr()->name),
             glsr()->name,
             glsr()->getPermission('welcome'),
@@ -46,7 +47,7 @@ class WelcomeController extends AbstractController
     public function removeSubMenu(): void
     {
         if (!function_exists('remove_submenu_page')) {
-            require_once ABSPATH.'wp-admin/includes/plugin.php';
+            require_once \ABSPATH.'wp-admin/includes/plugin.php';
         }
         remove_submenu_page('index.php', $this->welcomePage);
     }

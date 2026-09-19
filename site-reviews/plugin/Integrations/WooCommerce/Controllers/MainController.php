@@ -98,15 +98,6 @@ class MainController extends AbstractController
     }
 
     /**
-     * @filter site-reviews/enqueue/public/inline-script/after
-     */
-    public function filterPublicInlineScript(string $script): string
-    {
-        $script .= '"undefined"!==typeof jQuery&&(jQuery(".wc-tabs .reviews_tab a").on("click",function(){setTimeout(function(){GLSR.Event.trigger("site-reviews-themes/swiper/resize")},25)}));';
-        return $script;
-    }
-
-    /**
      * @filter site-reviews/schema/generate
      */
     public function filterRankmathSchemaPreview(array $data, SchemaParser $parser): array
@@ -200,10 +191,10 @@ class MainController extends AbstractController
     {
         global $pagenow;
         if ('edit.php' === $pagenow
-            && 'product' === filter_input(INPUT_GET, 'post_type')
-            && 'product-reviews' === filter_input(INPUT_GET, 'page')) {
+            && 'product' === filter_input(\INPUT_GET, 'post_type')
+            && 'product-reviews' === filter_input(\INPUT_GET, 'page')) {
             wp_redirect(add_query_arg('notice', 'product-reviews', glsr_admin_url()), 301);
-            exit;
+            glsr_exit();
         }
     }
 
@@ -250,7 +241,7 @@ class MainController extends AbstractController
         if ('edit' !== $screen->base || 'edit-site-review' !== $screen->id) {
             return;
         }
-        if ('product-reviews' !== filter_input(INPUT_GET, 'notice')) {
+        if ('product-reviews' !== filter_input(\INPUT_GET, 'notice')) {
             return;
         }
         glsr()->render('integrations/woocommerce/notices/reviews');
@@ -261,6 +252,6 @@ class MainController extends AbstractController
      */
     public function verifyProductOwner(Review $review): void
     {
-        $review->hasVerifiedOwner();
+        $review->hasVerifiedOwner(); // @phpstan-ignore-line
     }
 }

@@ -25,24 +25,26 @@
                     <# }); #>
                 </ul>
                 <div class="glsr-dp-help" style="display:none;">
-                    <div class="components-notice is-warning">
-                        <p class="components-notice__content">
-                            <?php
-                                printf(_x('Did you read the %s guide?', 'Getting Started (admin-text)', 'site-reviews'),
-                                    glsr_admin_link('welcome', _x('Getting Started', 'admin-text', 'site-reviews'))
-                                );
-                            ?>
-                        </p>
-                    </div>
-                    <div class="components-notice is-info">
-                        <p class="components-notice__content">
-                            <?php
-                                printf(_x('Maybe one of the %s provide this feature.', 'link to addons page (admin-text)', 'site-reviews'),
+                    <?php
+                        echo wp_get_admin_notice(
+                            /* translators: %s: link with the text "Getting Started" */
+                            sprintf(_x('Did you read the %s guide?', 'Getting Started (admin-text)', 'site-reviews'),
+                                glsr_admin_link('welcome', _x('Getting Started', 'admin-text', 'site-reviews'))
+                            ),
+                            ['type' => 'warning', 'additional_classes' => ['inline']]
+                        );
+                    ?>
+                    <?php if (!glsr(\GeminiLabs\SiteReviews\License::class)->isPremium()) { ?>
+                        <?php
+                            echo wp_get_admin_notice(
+                                /* translators: %s: link with the text "addons" */
+                                sprintf(_x('Maybe one of the %s provide this feature.', 'link to addons page (admin-text)', 'site-reviews'),
                                     glsr_premium_link('addons', _x('addons', 'admin-text', 'site-reviews'))
-                                );
-                            ?>
-                        </p>
-                    </div>
+                                ),
+                                ['type' => 'info', 'additional_classes' => ['inline']]
+                            );
+                        ?>
+                    <?php } ?>
                 </div>
                 <div class="glsr-dp-details" style="display:none;">
                     <textarea name="details" placeholder="" rows="3"></textarea>

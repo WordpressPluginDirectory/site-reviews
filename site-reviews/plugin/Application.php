@@ -7,6 +7,7 @@ use GeminiLabs\SiteReviews\Contracts\ShortcodeContract;
 use GeminiLabs\SiteReviews\Database\OptionManager;
 use GeminiLabs\SiteReviews\Defaults\PermissionDefaults;
 use GeminiLabs\SiteReviews\Helpers\Arr;
+use GeminiLabs\SiteReviews\Modules\Migrate;
 use GeminiLabs\SiteReviews\Modules\Queue;
 
 /**
@@ -49,6 +50,7 @@ final class Application extends Container implements PluginContract
 
     protected array $addons = [];
     protected array $defaults;
+    protected array $migrationArgs = [];
     protected string $name;
     protected array $settings;
 
@@ -111,10 +113,15 @@ final class Application extends Container implements PluginContract
      */
     public function init(): void
     {
+        if (wp_installing()) {
+            return;
+        }
         $args = [];
         // Ensure the custom database tables exist, this is needed in cases
         // where the plugin has been updated instead of activated.
-        if (empty(get_option(static::PREFIX.'db_version'))) {
+        if (empty(get_option(static::PREFIX.'db_version'))
+            && false === get_transient(static::PREFIX.'install_cooldown')) {
+            set_transient(static::PREFIX.'install_cooldown', 1, 15 * \MINUTE_IN_SECONDS);
             $this->make(Install::class)->run();
         }
         // If this is a new major version, copy over the previous version settings
@@ -130,9 +137,10 @@ final class Application extends Container implements PluginContract
             $args['database'] = true;
         }
         if (!empty($args)) {
-            add_action('init', function () use ($args) {
-                glsr(Queue::class)->once(time() + 15, 'queue/migration', $args, true);
-            });
+            // a named method rather than a closure, so that a site owner or an
+            // addon can remove_action() it if the migration must not be queued
+            $this->migrationArgs = $args;
+            add_action('init', [$this, 'queueMigration']);
         }
         $this->make(Hooks::class)->run();
     }
@@ -164,6 +172,7 @@ final class Application extends Container implements PluginContract
                     'default' => '',
                     'label' => $name,
                     'sanitizer' => 'text',
+                    /* translators: %s: link to the License Keys page */
                     'tooltip' => sprintf(_x('Enter the license key here. Your license can be found on the %s page of your Nifty Plugins account.', 'link to License Keys page (admin-text)', 'site-reviews'),
                         glsr_premium_link('license-keys')
                     ),
@@ -177,9 +186,20 @@ final class Application extends Container implements PluginContract
     }
 
     /**
+     * Queues the plugin migration that init() detected was needed.
+     * Hooked on "init" as a named method, so a site can remove_action() it.
+     */
+    public function queueMigration(): void
+    {
+        if (!empty($this->migrationArgs) && $this->make(Migrate::class)->canQueue()) {
+            $this->make(Queue::class)->once(time() + 15, 'queue/migration', $this->migrationArgs, true);
+        }
+    }
+
+    /**
      * This is triggered on "plugins_loaded:-10" by "site-reviews/premium/register".
      */
-    public function register(string $addon): void
+    public function register(string $addon, ?PluginContract $host = null): void
     {
         try {
             $reflection = new \ReflectionClass($addon); // make sure that the class exists
@@ -191,8 +211,11 @@ final class Application extends Container implements PluginContract
         $file = dirname(dirname($reflection->getFileName()));
         $file = trailingslashit($file).$addonId.'.php';
         if (!file_exists($file)) {
-            glsr_log()->error("Attempted to register an invalid addon [$addonId].");
-            return;
+            if (!$host instanceof PluginContract) {
+                glsr_log()->error("Attempted to register an invalid addon [$addonId].");
+                return;
+            }
+            $file = $host->file; // hosted addon: the host's headers gate the whole bundle
         }
         $premium = glsr()->filterArray('site-reviews-premium', []);
         if (in_array($addonId, $premium)
@@ -215,9 +238,19 @@ final class Application extends Container implements PluginContract
         }
         $this->addons[$addonId] = $addon;
         $this->singleton($addon); // this goes first!
-        $this->alias($addonId, $this->make($addon));
-        $instance = $this->make($addon)->init();
+        $parameters = [];
+        if ($host instanceof PluginContract) {
+            $parameters = ['host' => $host];
+            if ($host instanceof Addons\Addon) {
+                $host->markAsHost();
+            }
+        }
+        $instance = $this->make($addon, $parameters);
+        $this->alias($addon, $instance); // instances built with parameters are not auto-cached
+        $this->alias($addonId, $instance);
+        $instance->init();
         $this->append('addons', $instance->version, $instance->id);
+        $this->discard('settings'); // recompose the settings view now that this addon's option is mounted
     }
 
     /**

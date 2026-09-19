@@ -36,10 +36,10 @@ class ColumnFilterAssignedPost extends AbstractColumnFilter
         if (is_numeric($value) && 0 === Cast::toInt($value)) {
             return Arr::get($this->options(), 0);
         }
-        if (is_numeric($value)) {
-            return get_the_title((int) $value);
+        if (is_numeric($value) && '' !== ($title = get_the_title((int) $value))) {
+            return $title;
         }
-        return $this->placeholder();
+        return $this->placeholder(); // a deleted post has no title, and an empty label is a blank box
     }
 
     public function title(): string
@@ -49,6 +49,6 @@ class ColumnFilterAssignedPost extends AbstractColumnFilter
 
     public function value(): string
     {
-        return (string) filter_input(INPUT_GET, $this->name(), FILTER_SANITIZE_NUMBER_INT);
+        return (string) filter_input(\INPUT_GET, $this->name(), \FILTER_SANITIZE_NUMBER_INT);
     }
 }

@@ -29,8 +29,11 @@ class Controller extends AbstractController
             return $attributes;
         }
         $classes = [$attributes['class'] ?? ''];
+        if (!empty($args['style_bar_color'])) {
+            $classes[] = 'has-bar-color';
+        }
         if (!empty($args['style_rating_color'])) {
-            $classes[] = 'has-custom-color';
+            $classes[] = 'has-rating-color';
         }
         $attributes['class'] = glsr(Sanitizer::class)->sanitizeAttrClass(implode(' ', $classes));
         return $attributes;
@@ -79,16 +82,16 @@ class Controller extends AbstractController
      */
     public function interceptGetPostsQuery(): void
     {
-        $option = filter_input(INPUT_GET, 'option');
+        $option = filter_input(\INPUT_GET, 'option');
         if (!str_starts_with($option, glsr()->prefix)) {
             return;
         }
         $option = Str::removePrefix($option, glsr()->prefix);
-        $postId = (string) filter_input(INPUT_GET, 'id');
+        $postId = (string) filter_input(\INPUT_GET, 'id');
         check_ajax_referer("ux-builder-{$postId}", 'security');
-        $values = filter_input(INPUT_GET, 'values', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
+        $values = filter_input(\INPUT_GET, 'values', \FILTER_DEFAULT, \FILTER_REQUIRE_ARRAY);
         if (!is_array($values)) {
-            $values = [filter_input(INPUT_GET, 'values')];
+            $values = [filter_input(\INPUT_GET, 'values')];
         }
         $items = glsr(ShortcodeOptionManager::class)->get($option, [
             'include' => array_filter($values),
@@ -104,14 +107,14 @@ class Controller extends AbstractController
      */
     public function interceptSearchPostsQuery(): void
     {
-        $option = filter_input(INPUT_GET, 'option');
+        $option = filter_input(\INPUT_GET, 'option');
         if (!str_starts_with($option, glsr()->prefix)) {
             return;
         }
         $option = Str::removePrefix($option, glsr()->prefix);
-        $postId = (string) filter_input(INPUT_GET, 'id');
+        $postId = (string) filter_input(\INPUT_GET, 'id');
         check_ajax_referer("ux-builder-{$postId}", 'security');
-        $query = filter_input(INPUT_GET, 'query');
+        $query = filter_input(\INPUT_GET, 'query');
         $items = glsr(ShortcodeOptionManager::class)->get($option, [
             'search' => $query,
         ]);

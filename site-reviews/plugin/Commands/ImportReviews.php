@@ -28,7 +28,8 @@ class ImportReviews extends AbstractCommand
     {
         return glsr(ImportResultDefaults::class)->restrict(
             wp_parse_args([
-                'message' => _x('Imported %d of %d reviews', 'admin-text', 'site-reviews'),
+                /* translators: %1$d: number of reviews processed, %2$d: total number of reviews */
+                'message' => _x('Processed %1$d of %2$d reviews', 'admin-text', 'site-reviews'),
             ], $this->response)
         );
     }

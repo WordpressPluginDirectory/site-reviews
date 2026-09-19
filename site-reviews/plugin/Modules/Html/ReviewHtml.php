@@ -70,7 +70,7 @@ class ReviewHtml extends \ArrayObject
         $className = glsr()->filterString("review/tag/{$tag}", $className, $this);
         $field = class_exists($className)
             ? glsr($className, compact('tag', 'args'))->handleFor('review', $value, $review)
-            : Cast::toString($value, false);
+            : esc_html(Cast::toString($value, false));
         return glsr()->filterString("review/build/tag/{$tag}", $field, $value, $review, $this);
     }
 
@@ -83,7 +83,8 @@ class ReviewHtml extends \ArrayObject
             'assigned_terms' => $review->assigned_terms,
             'assigned_users' => $review->assigned_users,
         ]);
-        $templateTags['assigned'] = wp_json_encode($assignedTag);
+        $templateTags['assigned_data'] = wp_json_encode($assignedTag);
+        $templateTags['assigned'] = $templateTags['assigned_data']; // @compat v8.1
         $values = $review->toArray();
         foreach ($values as $key => $value) {
             $tag = $this->normalizeTemplateTag($key);

@@ -9,6 +9,7 @@ use GeminiLabs\SiteReviews\Helpers\Str;
 /**
  * @property string $id
  * @property string $name
+ * @property string $post_type
  *
  * @method array  filterArray($hook, ...$args)
  * @method bool   filterBool($hook, ...$args)
@@ -80,12 +81,28 @@ trait Plugin
     }
 
     /**
+     * isset()/empty() on an inaccessible property consult THIS, never __get() — without it
+     * they answer false/true regardless of what the property holds, and a guard like
+     * !empty(glsr()->settings) can never pass.
+     */
+    public function __isset($property)
+    {
+        $instance = new \ReflectionClass($this);
+        if ($instance->hasProperty($property)) {
+            $prop = $instance->getProperty($property);
+            return ($prop->isPublic() || $prop->isProtected()) && $prop->isInitialized($this);
+        }
+        return $instance->hasConstant(strtoupper($property));
+    }
+
+    /**
      * @param mixed ...$args
      */
     public function action(string $hook, ...$args): void
     {
-        do_action("{$this->id}/action", $hook, $args);
-        do_action_ref_array("{$this->id}/{$hook}", $args);
+        $prefix = $this->hookPrefix();
+        do_action("{$prefix}/action", $hook, $args);
+        do_action_ref_array("{$prefix}/{$hook}", $args);
     }
 
     /**
@@ -106,7 +123,7 @@ trait Plugin
     public function catchFatalError(): void
     {
         $error = error_get_last();
-        if (E_ERROR === Arr::get($error, 'type') && str_contains(Arr::get($error, 'message'), $this->path())) {
+        if (\E_ERROR === Arr::get($error, 'type') && str_contains(Arr::get($error, 'message'), $this->path())) {
             glsr_log()->error($error['message']);
         }
     }
@@ -163,8 +180,9 @@ trait Plugin
      */
     public function filter(string $hook, ...$args)
     {
-        do_action("{$this->id}/filter", $hook, $args);
-        return apply_filters_ref_array("{$this->id}/{$hook}", $args);
+        $prefix = $this->hookPrefix();
+        do_action("{$prefix}/filter", $hook, $args);
+        return apply_filters_ref_array("{$prefix}/{$hook}", $args);
     }
 
     /**
@@ -172,8 +190,50 @@ trait Plugin
      */
     public function filterArrayUnique(string $hook, ...$args): array
     {
-        $filtered = apply_filters_ref_array("{$this->id}/{$hook}", $args);
+        $prefix = $this->hookPrefix();
+        do_action("{$prefix}/filter", $hook, $args);
+        $filtered = apply_filters_ref_array("{$prefix}/{$hook}", $args);
         return array_unique(array_filter(Cast::toArray($filtered)));
+    }
+
+    /**
+     * @param mixed ...$args
+     */
+    public function filterArrayUniqueInt(string $hook, ...$args): array
+    {
+        $prefix = $this->hookPrefix();
+        do_action("{$prefix}/filter", $hook, $args);
+        $filtered = apply_filters_ref_array("{$prefix}/{$hook}", $args);
+        return Arr::uniqueInt(Cast::toArray($filtered));
+    }
+
+    /**
+     * @param mixed ...$args
+     */
+    public function filterArrayUniqueString(string $hook, ...$args): array
+    {
+        $prefix = $this->hookPrefix();
+        do_action("{$prefix}/filter", $hook, $args);
+        $filtered = apply_filters_ref_array("{$prefix}/{$hook}", $args);
+        return Arr::uniqueString(Cast::toArray($filtered));
+    }
+
+    /**
+     * Whether this plugin registers its own post type. The parent plugin always
+     * does; only around half of the addons do.
+     */
+    public function hasPostType(): bool
+    {
+        return !empty($this->post_type); // the raw constant, unfiltered
+    }
+
+    /**
+     * What every hook this plugin fires is namespaced with. The plugin id,
+     * unless the plugin runs inside another one (see Addons\Addon).
+     */
+    public function hookPrefix(): string
+    {
+        return $this->id;
     }
 
     /**
@@ -197,11 +257,33 @@ trait Plugin
         return glsr_get_option($path, $fallback, $cast);
     }
 
+    /**
+     * Resolves a settings path against this plugin's mount in the composed
+     * view. For the raw arrays that never reach OptionManager::get()/set():
+     * a site-reviews/settings/sanitize callback is handed the composed tree
+     * and the submitted form, and both are keyed by the mount.
+     */
+    public function settingPath(string $path = ''): string
+    {
+        $path = Str::removePrefix(trim($path), 'settings.');
+        return implode('.', array_filter(['settings', $this->settingsPath(), trim($path, '.')]));
+    }
+
+    /**
+     * The plugin's mount point inside the composed settings view (without the
+     * leading "settings."). The core plugin owns the root; addons override
+     * this with their own mount (see Addons\Addon::settingsPath()).
+     */
+    public function settingsPath(): string
+    {
+        return '';
+    }
+
     public function path(string $file = '', bool $realpath = true): string
     {
         $basedir = plugin_dir_path($this->file);
         if (!$realpath) {
-            $basedir = trailingslashit(WP_PLUGIN_DIR).basename(dirname($this->file));
+            $basedir = trailingslashit(\WP_PLUGIN_DIR).basename(dirname($this->file));
         }
         $basedir = trailingslashit($basedir);
         if (str_starts_with($file, $basedir)) {

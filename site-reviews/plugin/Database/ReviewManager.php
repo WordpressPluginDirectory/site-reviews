@@ -4,13 +4,13 @@ namespace GeminiLabs\SiteReviews\Database;
 
 use GeminiLabs\SiteReviews\Commands\CreateReview;
 use GeminiLabs\SiteReviews\Database;
-use GeminiLabs\SiteReviews\Database\PostMeta;
 use GeminiLabs\SiteReviews\Defaults\CustomFieldsDefaults;
 use GeminiLabs\SiteReviews\Defaults\RatingDefaults;
 use GeminiLabs\SiteReviews\Defaults\UpdateReviewDefaults;
 use GeminiLabs\SiteReviews\Helper;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
+use GeminiLabs\SiteReviews\Modules\Queue;
 use GeminiLabs\SiteReviews\Modules\Sanitizer;
 use GeminiLabs\SiteReviews\Request;
 use GeminiLabs\SiteReviews\Review;
@@ -113,25 +113,20 @@ class ReviewManager
      */
     public function createRaw(CreateReview $command)
     {
-        $values = glsr()->args($command->toArray()); // this filters the values
-        $submitted = $this->submittedMeta($command->request);
-        $metaInput = [
-            '_submitted' => $submitted, // save the original submitted request in metadata
-            '_submitted_hash' => md5(maybe_serialize($submitted)),
-        ];
+        $args = glsr()->args($command->toArray()); // this filters the values
         $values = [
             'comment_status' => 'closed',
-            'meta_input' => $metaInput,
+            'meta_input' => $command->meta(),
             'ping_status' => 'closed',
-            'post_author' => $values->author_id,
-            'post_content' => $values->content,
-            'post_date' => $values->date,
-            'post_date_gmt' => $values->date_gmt,
-            'post_modified' => $values->date,
-            'post_modified_gmt' => $values->date_gmt,
-            'post_name' => uniqid($values->type),
+            'post_author' => $args->author_id,
+            'post_content' => $args->content,
+            'post_date' => $args->date,
+            'post_date_gmt' => $args->date_gmt,
+            'post_modified' => $args->date,
+            'post_modified_gmt' => $args->date_gmt,
+            'post_name' => uniqid($args->type),
             'post_status' => $this->postStatus($command),
-            'post_title' => $values->title,
+            'post_title' => $args->title,
             'post_type' => glsr()->post_type,
         ];
         $values = glsr()->filterArray('review/create/post_data', $values, $command);
@@ -147,9 +142,7 @@ class ReviewManager
     public function deleteRating(int $reviewId): bool
     {
         $result = glsr(Database::class)->delete('ratings', ['review_id' => $reviewId]);
-        if ($result) {
-            glsr(Cache::class)->delete($reviewId, 'reviews');
-        }
+        glsr(Cache::class)->delete($reviewId, 'reviews'); // Always purge the cache
         return Cast::toInt($result) > 0;
     }
 
@@ -163,6 +156,8 @@ class ReviewManager
 
     /**
      * @return Review|false
+     *
+     * @todo Refactor the terms logic
      */
     public function duplicate(int $reviewId)
     {
@@ -176,6 +171,13 @@ class ReviewManager
         $data = $review->toArray();
         $data['author_id'] = get_current_user_id();
         $data['is_approved'] = $data['is_approved'] && glsr()->can('publish_posts');
+        if (empty($data['terms'])) {
+            // A (bool) false value survives into the request that glsr_create_review() validates
+            // (see Helper::isEmpty) where the form's "accepted" rule rejects it and the duplicate
+            // is refused. Removing the key puts it in CreateReview::isRequestValid()'s excluded
+            // list which drops the rule.
+            unset($data['terms']);
+        }
         if (!$duplicate = glsr_create_review($data)) {
             return false;
         }
@@ -201,25 +203,6 @@ class ReviewManager
         $reviews = new Reviews($results, $total, $args);
         glsr()->action('get/reviews', $reviews, $args);
         return $reviews;
-    }
-
-    public function submittedMeta(Request $request): array
-    {
-        $excludedKeys = [
-            '_action',
-            '_ajax_request',
-            '_frcaptcha',
-            '_hcaptcha',
-            '_nonce',
-            '_procaptcha',
-            '_recaptcha',
-            '_referer',
-            '_turnstile',
-            'form_id',
-            'form_signature',
-        ];
-        $submitted = $request->toArray($excludedKeys);
-        return array_filter($submitted, fn ($value) => !Helper::isEmpty($value));
     }
 
     public function total(array $args = [], array $reviews = []): int
@@ -319,6 +302,29 @@ class ReviewManager
         foreach ($data as $metaKey => $metaValue) {
             glsr(PostMeta::class)->set($reviewId, $metaKey, $metaValue);
         }
+    }
+
+    public function updateGeolocation(int $reviewId, array $values = []): void
+    {
+        if (!array_key_exists('ip_address', $values)) {
+            return;
+        }
+        $review = $this->get($reviewId);
+        if ($review->ip_address === $values['ip_address']) {
+            return;
+        }
+        glsr(Database::class)->delete('stats', [
+            'rating_id' => $review->rating_id,
+        ]);
+        glsr(PostMeta::class)->delete($review->ID, 'geolocation');
+        glsr()->action('cache/flush', "review_{$review->ID}_geolocated", $review);
+        if (!glsr_get_option('reviews.geolocation', false, 'bool')) {
+            return;
+        }
+        if (empty($values['ip_address']) || Helper::isLocalIpAddress($values['ip_address'])) {
+            return;
+        }
+        glsr(Queue::class)->once(time(), 'queue/geolocation', ['review_id' => $review->ID], true);
     }
 
     public function updateRating(int $reviewId, array $values = []): int

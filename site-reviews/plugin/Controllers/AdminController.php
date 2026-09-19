@@ -38,7 +38,7 @@ class AdminController extends AbstractController
             }
         }
         wp_redirect(glsr_admin_url());
-        exit;
+        glsr_exit();
     }
 
     /**
@@ -95,7 +95,7 @@ class AdminController extends AbstractController
         }
         $actions = [];
         if (glsr()->hasPermission('documentation')) {
-            $actions['documentation'] = glsr_admin_link('documentatio.n', _x('Documentation', 'admin-text', 'site-reviews'));
+            $actions['documentation'] = glsr_admin_link('documentation', _x('Documentation', 'admin-text', 'site-reviews'));
         }
         $actions['support'] = glsr(Builder::class)->a([
             'aria-label' => esc_attr_x('Visit community forums', 'admin-text', 'site-reviews'),
@@ -117,7 +117,7 @@ class AdminController extends AbstractController
         $submit = get_submit_button(_x('Apply', 'admin-text', 'site-reviews'), 'primary', 'screen-options-apply', false);
         $close = glsr(Builder::class)->button([
             'aria-controls' => 'screen-options-wrap',
-            'class' => 'button button-secondary glsr-screen-meta-toggle',
+            'class' => 'button glsr-screen-meta-toggle',
             'text' => _x('Close Panel', 'admin-text', 'site-reviews'),
             'type' => 'button',
         ]);
@@ -244,19 +244,16 @@ class AdminController extends AbstractController
      */
     public function scheduleMigration(): void
     {
-        if (defined('GLSR_UNIT_TESTS')) {
-            return;
-        }
         if (!$this->isAdminScreen()) {
             return;
         }
-        if (glsr(Queue::class)->isPending('queue/migration')) {
+        if (!glsr(Migrate::class)->canQueue()) {
             return;
         }
         if (!glsr(Migrate::class)->isMigrationNeeded() && !glsr(Database::class)->isMigrationNeeded()) {
             return;
         }
-        glsr(Queue::class)->once(time() + MINUTE_IN_SECONDS, 'queue/migration');
+        glsr(Queue::class)->once(time() + \MINUTE_IN_SECONDS, 'queue/migration');
     }
 
     /**

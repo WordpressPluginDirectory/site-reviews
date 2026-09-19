@@ -11,6 +11,7 @@ use GeminiLabs\SiteReviews\Exceptions\BindingResolutionException;
 use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 use GeminiLabs\SiteReviews\Helpers\Str;
+use GeminiLabs\SiteReviews\License;
 use GeminiLabs\SiteReviews\Modules\Backtrace;
 use GeminiLabs\SiteReviews\Modules\Console;
 use GeminiLabs\SiteReviews\Modules\Dump;
@@ -65,6 +66,18 @@ function glsr($alias = null, array $parameters = [])
         glsr_log()->error($e->getMessage());
         return Application::load()->make(BlackHole::class, compact('alias'));
     }
+}
+
+/**
+ * Returns true when an "addon required" notice (with its purchase link) should
+ * be shown, i.e. when neither the addon nor the premium plugin is installed.
+ */
+function glsr_addon_required(string $addonId): bool
+{
+    if (!is_null(glsr()->addon($addonId))) {
+        return false;
+    }
+    return !glsr(License::class)->isPremium();
 }
 
 function glsr_admin_url(string $page = '', string $tab = '', string $sub = ''): string
@@ -182,6 +195,16 @@ function glsr_debug(...$vars): void
 }
 
 /**
+ * Ends the request. The plugin's only exit point: a language construct cannot be
+ * intercepted, a function call can, so the test suite shadows this per namespace
+ * to catch termination instead of dying with the process.
+ */
+function glsr_exit(int $status = 0): never
+{
+    exit($status);
+}
+
+/**
  * @param string|int $path
  * @param mixed      $fallback
  *
@@ -247,6 +270,7 @@ function glsr_premium_link(string $path, $attrs = []): string
     $texts = [
         'license-keys' => _x('License Keys', 'admin-text', 'site-reviews'),
         'site-reviews-actions' => _x('Review Actions', 'admin-text', 'site-reviews'),
+        'site-reviews-alerts' => _x('Review Alerts', 'admin-text', 'site-reviews'),
         'site-reviews-authors' => _x('Review Authors', 'admin-text', 'site-reviews'),
         'site-reviews-filters' => _x('Review Filters', 'admin-text', 'site-reviews'),
         'site-reviews-forms' => _x('Review Forms', 'admin-text', 'site-reviews'),
@@ -266,7 +290,7 @@ function glsr_premium_link(string $path, $attrs = []): string
 
 function glsr_premium_url(string $path = '/'): string
 {
-    $baseUrl = 'https://niftyplugins.com/';
+    $baseUrl = 'https://niftyplugins.com';
     $paths = [
         'account' => '/account/',
         'addons' => '/plugins/',
@@ -277,11 +301,14 @@ function glsr_premium_url(string $path = '/'): string
         'site-reviews-forms' => '/plugins/site-reviews-forms/',
         'site-reviews-images' => '/plugins/site-reviews-images/',
         'site-reviews-notifications' => '/plugins/site-reviews-notifications/',
-        'site-reviews-premium' => '/plugins/site-reviews-premium/',
+        'site-reviews-premium' => 'https://site-reviews.com/premium/',
         'site-reviews-themes' => '/plugins/site-reviews-themes/',
         'support' => '/account/support/',
     ];
     $urlPath = trim($paths[$path] ?? $path);
+    if (str_starts_with($urlPath, 'http')) {
+        return esc_url($urlPath);
+    }
     $urlPath = trailingslashit(ltrim($urlPath, '/'));
     return esc_url(trailingslashit($baseUrl).$urlPath);
 }

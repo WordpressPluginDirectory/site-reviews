@@ -9,9 +9,10 @@
         </button>
     </h3>
     <div id="fn-glsr_update_review" class="inside">
-        <div class="glsr-notice-inline components-notice is-warning">
-            <p class="components-notice__content">This function uses basic validation on the provided values. If validation fails, the function will return false and the validation errors will be logged to the <?php echo glsr_admin_link('tools.console'); ?>.</p>
-        </div>
+        <?php echo wp_get_admin_notice(
+            'This function uses basic validation on the provided values. If validation fails, the function will return false and the validation errors will be logged to the '.glsr_admin_link('tools.console').'.',
+            ['type' => 'warning', 'additional_classes' => ['inline']]
+        ); ?>
         <pre><code class="language-php">/**
  * Default values in the $reviewValues array:
  * - 'assigned_posts' => '',
@@ -35,7 +36,7 @@
  */
 glsr_update_review($reviewId, array $reviewValues = []);</code></pre>
         <p><strong>Example Usage:</strong></p>
-        <p>Any custom keys that are added to the $reviewValues array will be saved into the <code>$review->custom</code> array of the created review.</p>
+        <p>Any custom keys that are added to the $reviewValues array will be saved into the <code>$review->custom</code> array of the created review. A custom key may only contain lowercase letters (a-z), numbers, underscores, and dashes; any other custom key is ignored.</p>
         <pre><code class="language-php">$review = glsr_update_review(13, [
     'date' => '2021-06-13',
     'title' => 'This is the updated review title!',

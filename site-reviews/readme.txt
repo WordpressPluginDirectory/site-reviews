@@ -2,12 +2,12 @@
 Contributors: geminilabs, pryley
 Donate link: https://ko-fi.com/pryley
 Tags: reviews, ratings, testimonials, product reviews, business reviews
-Tested up to: 6.9
-Stable tag: 8.0.5
+Tested up to: 7.1
+Stable tag: 8.3.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Site Reviews is a complete review management solution that integrates with WooCommerce and SureCart and works similarly to reviews on Amazon, Tripadvisor, and Yelp.
+Site Reviews is the best free reviews plugin. It integrates with WooCommerce & SureCart and works just like reviews on Amazon, Tripadvisor, and Yelp.
 
 == Description ==
 
@@ -23,8 +23,8 @@ https://www.youtube.com/watch?v=H5HdMCXvuq8
 
 = Try a Live Demo =
 
-1. [Try Site Reviews](https://tastewp.com/plugins/site-reviews/?ni=true&redirect=index.php%3Fpage=site-reviews-welcome%26tab=getting-started) for yourself on a demo server.
-2. [View a demo website](https://demo.site-reviews.com)
+1. [Visit our demo website](https://site-reviews.com)
+2. [Try Site Reviews](https://tastewp.com/plugins/site-reviews/?ni=true&redirect=index.php%3Fpage=site-reviews-welcome%26tab=getting-started) for yourself on a demo server.
 
 = Current Features =
 
@@ -135,7 +135,7 @@ Site Reviews is officially compatible with the following plugins:
 - [WPBakery Page Builder](https://wpbakery.com/)
 - [WPForms](https://wordpress.org/plugins/wpforms-lite/)
 - [WPLoyalty](https://wployalty.net/)
-- [WPML](https://wpml.org/)
+- [WPML](https://wpml.org/) - note: review translation is not supported
 - [Yoast Duplicate Post](https://wordpress.org/plugins/duplicate-post/)
 - [Yoast SEO](https://yoast.com/wordpress/plugins/seo-free/)
 
@@ -149,7 +149,7 @@ Site Reviews is officially compatible with the following plugins:
 
 - MySQL 5.6 or greater
 - PHP 8.1.2 or greater
-- WordPress 6.7 or greater
+- WordPress 6.8 or greater
 
 = Automatic installation =
 
@@ -207,9 +207,191 @@ You can report any security bugs found in the source code of this plugin through
 
 = 8.0.0 =
 
-This update requires a minimum of PHP 8.1.2 and WordPress 6.7. There are a few potentially breaking changes, so please make sure to read the plugin's changelog and Upgrade Guide after updating.
+This update requires a minimum of PHP 8.1.2 and WordPress 6.8. There are a few potentially breaking changes, so please make sure to read the plugin's changelog and Upgrade Guide after updating.
 
 == Changelog ==
+
+= 8.3.2 (2026-09-18) =
+
+- Fixed a security issue with custom field names in submitted reviews
+
+= 8.3.1 (2026-09-09) =
+
+- Fixed the Yoast SEO integration
+
+= 8.3.0 (2026-09-06) =
+
+- Added REST API endpoints for review submission and pagination; the frontend now uses them with an automatic fallback to admin-ajax
+- Fixed a database error when a foreign key references a missing table
+- Fixed a failed migration being retried every minute instead of hourly
+- Fixed a failed plugin install being retried on every page load
+- Fixed a PHP object injection vulnerability in the review form (reported by Jakub Herman)
+- Fixed an endless migration loop causing database deadlocks after restoring a backup
+- Fixed checkbox settings being emptied by settings updates that did not come from the settings form (WP-CLI, an importer, or another plugin)
+- Fixed custom message templates and the multilingual setting being reset by settings updates
+- Fixed foreign keys being skipped when a database restore changes a table engine
+- Fixed integration role settings (ProfilePress, Ultimate Member) not saving when every checkbox was unchecked
+- Fixed review form submissions without JavaScript being ignored on some sites using plain permalinks
+- Fixed review text being able to break mid-word when a review is squeezed into a narrow space
+- Fixed scheduled background tasks
+- Fixed the addon license notice being hidden by a release upgrade notice on the Updates page
+- Fixed the "all" data-removal option on uninstall leaving review images and the uploads folder behind
+- Fixed the block preview in the editor not updating when some settings are changed
+- Fixed the foreign key check matching same-named constraints on other tables
+- Fixed the import progress bar counting skipped entries as imported
+- Fixed the "Load more" pagination stopping one page early
+- Fixed the review form not showing a confirmation message after submission when JavaScript is disabled
+- Fixed the revision links in REST API review responses
+- Improved compatibility with firewalls that block wp-admin requests
+- Improved the encryption key derivation; on sites without unique security keys in wp-config.php, links in emails sent before this update must be re-sent
+- Improved the failed auto-update email to include a reason when an addon license does not allow the update
+- Improved the handling of remote API responses (serialized data can no longer create PHP objects)
+- Improved the import result notice, it now says why entries were skipped
+- Improved the review modal's compatibility with older addon versions and with plugins whose code fails while it opens
+- Improved the review modal: it now uses the browser's native dialog, its frame and close button can no longer be broken by theme styles, and closing it can no longer discard a half-typed form by accident
+- Improved the speed of review submission and pagination requests
+- Improved the update notice for addons with an expired, inactive, or invalid license
+- Removed the broken review autosave endpoints from the REST API
+
+= 8.2.2 (2026-08-22) =
+
+- Fixed the Review Notifications addon losing its custom notifications after updating Site Reviews
+- Fixed the Review Notifications addon resetting its email settings to the defaults after updating Site Reviews
+
+= 8.2.1 (2026-08-11) =
+
+- Fixed a second import being able to start while one was still running
+- Fixed a stored cross-site scripting vulnerability in review content
+- Fixed async actions showing a zero date instead of "async" in the Scheduled Actions table
+- Fixed CSV rows with no review data creating an empty review on every import
+- Fixed duplicate rows in a CSV file sometimes being imported as separate reviews
+- Fixed the Scheduled Actions table failing when another plugin registers its own Action Scheduler schedule
+- Fixed WordPress 7.1 compatibility
+- Improved the speed of the CSV review import on sites with many reviews
+
+= 8.2.0 (2026-08-06) =
+
+- Added per-addon settings storage: each addon now keeps its settings in its own option
+- Added support for the standalone "Site Review Premium" plugin (coming soon)
+- Added support for WooCommerce "Customer review request" emails
+- Fixed a "doing it wrong" notice raised by an integration's version notice
+- Fixed a duplicate Reviews section in WooCommerce's redesigned Product Details block
+- Fixed a fatal error on sites running MultilingualPress when it cannot report its version
+- Fixed a migration overwriting saved settings when the options cache is stale
+- Fixed a PHP error when a review query is built with no arguments
+- Fixed a PHP warning on sites running Loyalty Program for WooCommerce
+- Fixed a PHP warning when importing WooCommerce product reviews
+- Fixed an API request not being retried when the server asked for it to be
+- Fixed an unrecognised admin request failing silently instead of being logged
+- Fixed API request SSL certificate verification
+- Fixed cached API responses never being cleared on sites using a persistent object cache
+- Fixed deleted reviews being left in the review cache
+- Fixed duplicate error notices when importing settings from an older version
+- Fixed duplicating a review that had not accepted the terms
+- Fixed imported reviews with no timestamp in the date being stamped with the time of the import
+- Fixed imported WooCommerce product reviews losing their author
+- Fixed PHP deprecation notices on the review revisions comparison screen
+- Fixed plugin migrations rebuilding database indexes every time instead of only when needed
+- Fixed Polylang translations never being applied to assigned pages, categories or users
+- Fixed reviews being wrongly recorded as having accepted the terms on some sites
+- Fixed stale settings keys not being cleaned after a plugin migration
+- Fixed the "Approve" and "Unapproved" wording not being applied to the Publish metabox on the review editor
+- Fixed the approve link capability check in the notification email
+- Fixed the author link missing from reviews in the REST API
+- Fixed the category priority cache not being cleared when a category priority is added or changed
+- Fixed the classic widget title not being displayed
+- Fixed the custom schema identifier being ignored unless the schema type was Custom
+- Fixed the Documentation link on the plugins screen
+- Fixed an empty version showing in the System Info after some settings imports
+- Fixed the addons section missing from the System Info report
+- Fixed the Import Settings tool losing its notices
+- Fixed the notification and verification email settings offering invalid template tags
+- Fixed the plugin rollback tool when JavaScript is unavailable
+- Fixed the plugin's service container being unable to register a factory
+- Fixed the plugins screen load time when the licence server is unreachable
+- Fixed the post meta cache not being cleared when the rating counts are recalculated
+- Fixed the Prosopo Procaptcha error details not being included in the log when a captcha is rejected
+- Fixed the redirect after duplicating a review with the Duplicate Page plugin
+- Fixed the review cache not being cleared when a rating is deleted
+- Fixed the review submission limit matching too many previous reviews on sites using flexible assignment
+- Fixed the Unapprove link publishing the review instead of unapproving it when javascript is disabled
+- Fixed the update details check for inactive addons
+- Fixed translatable strings that used multiple unnumbered placeholders — translations can now reorder them (existing translations of these strings will need to be updated)
+- Improved integration version checks to warn about untested versions instead of disabling the integration
+- Improved the WooCommerce comments compatibility experiment to give plugins and themes more accurate results
+- Updated Action Scheduler to v4.1.0
+- Updated the supported WooCommerce version to 11
+
+= 8.1.0 (2026-07-11) =
+
+- Added a migration to backfill missing post_date_gmt values on existing reviews
+- Fixed admin settings page styling in WordPress 7.0
+- Fixed an unbounded reviews-per-page query parameter that could exhaust server resources
+- Fixed color sanitization to ignore empty values
+- Fixed Discord and Slack webhook URL validation to prevent a host-matching bypass
+- Fixed geolocation batch processing to reschedule failed or rate-limited requests instead of blocking the queue worker
+- Fixed geolocation retries being silently dropped by the scheduled actions queue
+- Fixed malformed markup in the reviews list-table rating column for ratings greater than 5
+- Fixed random review ordering so paginated results stay consistent within the hour
+- Improved block editor performance by prefetching component options
+- Improved encryption key derivation to use HKDF (existing encrypted data still decrypts)
+- Improved escaping of admin notices on the Scheduled Actions page
+- Improved the markup of admin error notices
+- Updated Action Scheduler to v4.0.0 (failed actions are now purged after 3 months)
+- Updated the minimum required WordPress version to 6.8
+
+= 8.0.13 (2026-07-03) =
+
+- Fixed a timezone bug that would reset the submission date of a review when approving a newly submitted unapproved review
+
+= 8.0.12 (2026-06-23) =
+
+- Fixed a Broken Access Control vulnerability (CVSS 6.5) in the REST API
+- Fixed the menu order of addon menu items
+
+= 8.0.11 (2026-05-06) =
+
+- Fixed an infinite-recursion bug in the Cloudflare cache integration
+- Fixed geolocation jobs being queued when the geolocation setting was disabled
+
+= 8.0.10 (2026-04-29) =
+
+- Fixed Discord and Slack webhook url domain sanitization
+- Fixed errors from WooCommerce rest_preload_api_request during plugin updates
+- Fixed geolocation regeneration when IP address is changed
+- Fixed intermittent loss of review details on first save
+- Fixed Modal positioning
+- Fixed review types
+- Fixed WordPress 7.0 compatibility
+- Improved Geolocation Reviews tool
+- Improved Rollback Plugin tool
+- Improved wp_safe_redirect usage
+- Improved wp_safe_remote_post usage
+
+= 8.0.9 (2026-03-31) =
+
+- Fixed the WordPress Importer
+
+= 8.0.8 (2026-03-24) =
+
+- Fixed an incorrect review count on paginated results when reviews have been assigned to multiple pages
+
+= 8.0.7 (2026-03-22) =
+
+- Fixed a PHP 8.5 deprecation notice
+- Fixed Avada design control grouping
+- Fixed Prosopo Captcha integration
+- Improved CAPTCHA script loading
+- Improved Friendly Captcha integration (API v2 support)
+- Improved review form validation
+
+= 8.0.6 (2026-03-14) =
+
+- Fixed compatibility with the [Review Forms](https://niftyplugins.com/plugins/site-reviews-forms/) addon when using the `glsr_create_review` function.
+- Fixed multi-select controls in block settings when multiple blocks of the same type are on the page.
+- Fixed review details sync in MultilingualPress when manually creating a new review relationship.
+- Fixed the "Manage Reviews" link in multisite WP Admin Bar "My Sites" menu
+- Fixed visiblity of "Author" label in bulk edit when user role does not have the capability to edit review author.
 
 = 8.0.5 (2026-03-11) =
 

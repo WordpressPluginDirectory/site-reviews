@@ -17,7 +17,7 @@ class Polylang implements MultilingualContract
      */
     public function getPost(int $postId): ?\WP_Post
     {
-        return get_post($this->getPostId($postId), OBJECT);
+        return get_post($this->getPostId($postId), \OBJECT);
     }
 
     /**
@@ -35,7 +35,7 @@ class Polylang implements MultilingualContract
         if (!pll_is_translated_post_type($postType)) {
             return $postId;
         }
-        $polylangPostId = pll_get_post($postId, pll_get_post_language($postId, 'slug'));
+        $polylangPostId = pll_get_post($postId);
         if (!empty($polylangPostId)) {
             $postId = $polylangPostId;
         }
@@ -84,7 +84,7 @@ class Polylang implements MultilingualContract
      */
     public function getTerm(int $termId): ?\WP_Term
     {
-        $term = get_term($this->getTermId($termId), glsr()->taxonomy, OBJECT);
+        $term = get_term($this->getTermId($termId), glsr()->taxonomy, \OBJECT);
         if (!is_a($term, '\WP_Term')) {
             return null;
         }
@@ -104,7 +104,7 @@ class Polylang implements MultilingualContract
         }
         $term = get_term($termId, glsr()->taxonomy);
         if (is_a($term, '\WP_Term')) {
-            $polylangTermId = pll_get_term($termId, pll_get_term_language($termId, 'slug'));
+            $polylangTermId = pll_get_term($termId);
         }
         if (!empty($polylangTermId)) {
             $termId = $polylangTermId;
@@ -162,6 +162,6 @@ class Polylang implements MultilingualContract
     public function isSupported(): bool
     {
         return $this->isActive()
-            && Helper::isGreaterThanOrEqual(POLYLANG_VERSION, $this->supportedVersion);
+            && Helper::isGreaterThanOrEqual(\POLYLANG_VERSION, $this->supportedVersion);
     }
 }

@@ -18,6 +18,7 @@ class ValidateForm
         glsr()->sessionPluck('form_errors');
         glsr()->sessionPluck('form_invalid');
         glsr()->sessionPluck('form_message');
+        glsr()->sessionPluck('form_success');
     }
 
     /**
@@ -88,6 +89,7 @@ class ValidateForm
             BlacklistValidator::class,
             AkismetValidator::class,
             FriendlycaptchaValidator::class,
+            FriendlycaptchaV2Validator::class,
             HcaptchaValidator::class,
             ProcaptchaValidator::class,
             RecaptchaV2InvisibleValidator::class,

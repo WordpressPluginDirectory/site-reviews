@@ -222,8 +222,8 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
             foreach ($table_list as $table_name) {
                 if (!in_array($wpdb->prefix.$table_name, $found_tables)) {
                     $this->admin_notices[] = [
-                        'class' => 'error',
                         'message' => _x('It appears one or more database tables were missing. Attempting to re-create the missing table(s).', 'admin-text', 'site-reviews'),
+                        'type' => 'error',
                     ];
                     $this->recreate_tables();
                     parent::display_admin_notices();
@@ -234,7 +234,7 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
         if ($this->runner->has_maximum_concurrent_batches()) {
             $claim_count = $this->store->get_claim_count();
             $this->admin_notices[] = [
-                'class' => 'updated',
+                'type' => 'info',
                 'message' => sprintf(
                     /* translators: %s: amount of claims */
                     _n(
@@ -258,15 +258,15 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
                 $async_request_message = sprintf(_x('The next queue will begin processing in approximately %d seconds.', 'admin-text', 'site-reviews'), $async_request_lock_expiration - time());
             }
             $this->admin_notices[] = [
-                'class' => 'notice notice-info is-dismissible',
                 'message' => $async_request_message,
+                'type' => 'info',
             ];
         }
         $notification = get_transient('action_scheduler_admin_notice');
         if (is_array($notification)) {
             delete_transient('action_scheduler_admin_notice');
             $action = $this->store->fetch_action($notification['action_id']);
-            $action_hook_html = "<strong><code>{$action->get_hook()}</code></strong>";
+            $action_hook_html = '<strong><code>'.esc_html($action->get_hook()).'</code></strong>';
             if (1 == $notification['success']) {
                 $class = 'success';
                 switch ($notification['row_action_type']) {
@@ -293,8 +293,8 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
             }
             $action_message_html = apply_filters('action_scheduler_admin_notice_html', $action_message_html, $action, $notification);
             $this->admin_notices[] = [
-                'class' => sprintf('notice notice-%s is-dismissible', $class),
                 'message' => $action_message_html,
+                'type' => $class, // 'success' or 'error'
             ];
         }
         parent::display_admin_notices();
@@ -454,6 +454,7 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
         }
         $recurrence = $schedule->get_recurrence();
         if (is_numeric($recurrence)) {
+            /* translators: %s: time interval */
             return sprintf(_x('Every %s', '%s: time interval (admin-text)', 'site-reviews'), glsr(Date::class)->interval($recurrence));
         }
         return $recurrence;
@@ -466,7 +467,7 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
      */
     protected function get_request_order()
     {
-        $order = strtolower((string) filter_input(INPUT_GET, 'order'));
+        $order = strtolower((string) filter_input(\INPUT_GET, 'order'));
         if ('desc' === $order) {
             return 'DESC';
         }
@@ -501,7 +502,11 @@ class ScheduledActionsTable extends \ActionScheduler_Abstract_ListTable
     protected function get_schedule_display_string(\ActionScheduler_Schedule $schedule)
     {
         $schedule_display_string = '';
-        if (!$schedule->get_date()) {
+        if ($schedule instanceof \ActionScheduler_NullSchedule) {
+            return _x('async', 'admin-text', 'site-reviews');
+        }
+        // The ActionScheduler_Schedule interface requires next() and is_recurring() only.
+        if (!method_exists($schedule, 'get_date') || !$schedule->get_date()) {
             return '0000-00-00 00:00:00';
         }
         $next_timestamp = $schedule->get_date()->getTimestamp();

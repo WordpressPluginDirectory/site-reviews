@@ -16,17 +16,13 @@ class CustomFieldsDefaults extends DefaultsAbstract
     public array $guarded = [
         '_action',
         '_ajax_request',
-        '_frcaptcha',
-        '_hcaptcha',
+        '_captcha',
         '_nonce',
         '_pagination_atts',
         '_post_id',
-        '_procaptcha',
-        '_recaptcha',
         '_referer',
         '_reviews_atts',
         '_summary_atts',
-        '_turnstile',
         'assigned_posts',
         'assigned_terms',
         'assigned_users',
@@ -60,6 +56,18 @@ class CustomFieldsDefaults extends DefaultsAbstract
         'type',
         'url',
     ];
+
+    /**
+     * Finalize provided values, this always runs last.
+     * A custom field name becomes a meta key. A name that sanitize_key() changes is refused.
+     */
+    protected function finalize(array $values = []): array
+    {
+        return array_filter($values,
+            fn ($name) => '' !== (string) $name && sanitize_key($name) === (string) $name,
+            \ARRAY_FILTER_USE_KEY
+        );
+    }
 
     /**
      * Normalize provided values, this always runs first.

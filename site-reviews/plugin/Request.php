@@ -43,7 +43,7 @@ class Request extends Arguments
     public static function inputGet(): Request
     {
         $values = [];
-        if ($token = filter_input(INPUT_GET, glsr()->prefix)) {
+        if ($token = filter_input(\INPUT_GET, glsr()->prefix)) {
             $token = sanitize_text_field($token);
             $values = glsr(Encryption::class)->decryptRequest($token);
         }
@@ -62,11 +62,7 @@ class Request extends Arguments
         }
         $requestAction = Helper::filterInput('_action', $values);
         if (in_array($requestAction, glsr(Captcha::class)->actions())) {
-            $values['_frcaptcha'] = Helper::filterInput('frc-captcha-solution');
-            $values['_hcaptcha'] = Helper::filterInput('h-captcha-response');
-            $values['_procaptcha'] = Helper::filterInput('procaptcha-response');
-            $values['_recaptcha'] = Helper::filterInput('g-recaptcha-response');
-            $values['_turnstile'] = Helper::filterInput('cf-turnstile-response');
+            $values['_captcha'] = glsr(Captcha::class)->token();
         }
         return new static($values);
     }
@@ -81,12 +77,23 @@ class Request extends Arguments
         if (!$this->exists('form_signature') || 'form_signature' === $path) {
             return;
         }
-        $values = $this->decrypt('form_signature');
-        $values = wp_parse_args(maybe_unserialize($values));
+        $values = $this->signedValues();
         if (array_key_exists($path, $values)) {
             $values[$path] = $value;
             $storage['form_signature'] = glsr(Encryption::class)->encrypt(maybe_serialize($values));
             $this->exchangeArray($storage);
         }
+    }
+
+    /**
+     * The signed values a form was rendered with.
+     */
+    public function signedValues(array $defaults = []): array
+    {
+        $decrypted = $this->decrypt('form_signature');
+        $values = is_serialized($decrypted)
+            ? unserialize($decrypted, ['allowed_classes' => false])
+            : null;
+        return wp_parse_args(is_array($values) ? $values : [], $defaults);
     }
 }

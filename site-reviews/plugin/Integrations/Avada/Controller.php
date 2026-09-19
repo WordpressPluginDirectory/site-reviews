@@ -126,8 +126,11 @@ class Controller extends AbstractController
         if (!empty($args['style_align'])) {
             $classes[] = "items-justified-{$args['style_align']}";
         }
+        if (!empty($args['style_bar_color'])) {
+            $classes[] = 'has-bar-color';
+        }
         if (!empty($args['style_rating_color'])) {
-            $classes[] = 'has-custom-color';
+            $classes[] = 'has-rating-color';
         }
         if (!empty($args['style_text_align'])) {
             $classes[] = "has-text-align-{$args['style_text_align']}";
@@ -203,15 +206,15 @@ class Controller extends AbstractController
      */
     public function runSearchQuery(): void
     {
-        $reqMethod = 'POST' === filter_input(INPUT_SERVER, 'REQUEST_METHOD') ? \INPUT_POST : \INPUT_GET;
+        $reqMethod = 'POST' === filter_input(\INPUT_SERVER, 'REQUEST_METHOD') ? \INPUT_POST : \INPUT_GET;
         if (filter_input($reqMethod, 'fusion_load_nonce')) {
             check_ajax_referer('fusion_load_nonce', 'fusion_load_nonce');
         } else {
             check_ajax_referer('fusion-page-options-nonce', 'fusion_po_nonce');
         }
         $data = array_fill_keys(['labels', 'results'], []);
-        $params = filter_input($reqMethod, 'params', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
-        $labels = filter_input($reqMethod, 'labels', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
+        $params = filter_input($reqMethod, 'params', \FILTER_DEFAULT, \FILTER_REQUIRE_ARRAY);
+        $labels = filter_input($reqMethod, 'labels', \FILTER_DEFAULT, \FILTER_REQUIRE_ARRAY);
         $search = filter_input($reqMethod, 'search');
         $option = $params['option'] ?? '';
         if (!is_null($search)) {

@@ -36,6 +36,7 @@ class ListTableController extends AbstractController
             $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             if (!glsr()->can('edit_post', $postId) && glsr()->can('respond_to_post', $postId)) {
                 $send = [
+                    /* translators: %s: user's name */
                     'text' => sprintf(_x('%s is currently editing', 'admin-text', 'site-reviews'), $name),
                 ];
                 if (get_option('show_avatars')) {
@@ -50,6 +51,7 @@ class ListTableController extends AbstractController
             if (!glsr()->can('respond_to_post', $postId)) {
                 continue;
             }
+            /* translators: %s: user's name */
             $send = ['text' => sprintf(_x('%s is currently editing', 'admin-text', 'site-reviews'), $name)];
             if (get_option('show_avatars')) {
                 $send['avatar_src'] = get_avatar_url($user->ID, ['size' => 18]);
@@ -76,7 +78,7 @@ class ListTableController extends AbstractController
                 $value = $columns[$key];
             }
         }
-        return array_filter($postTypeColumns, 'strlen'); // @phpstan-ignore-line
+        return array_filter($postTypeColumns, 'strlen');
     }
 
     /**
@@ -182,6 +184,7 @@ class ListTableController extends AbstractController
         if (glsr()->can('respond_to_post', $post->ID)) {
             $newActions['respond hide-if-no-js'] = glsr(Builder::class)->button([
                 'aria-expanded' => false,
+                /* translators: %s: review title */
                 'aria-label' => esc_attr(sprintf(_x('Respond inline to &#8220;%s&#8221;', 'admin-text', 'site-reviews'), _draft_or_post_title())),
                 'class' => 'button-link editinline',
                 'text' => _x('Respond', 'admin-text', 'site-reviews'),
@@ -257,12 +260,12 @@ class ListTableController extends AbstractController
      */
     public function overrideInlineSaveAjax(): void
     {
-        $screen = filter_input(INPUT_POST, 'screen');
+        $screen = filter_input(\INPUT_POST, 'screen');
         if ('edit-'.glsr()->post_type !== $screen) {
             return; // don't override
         }
         check_ajax_referer('inlineeditnonce', '_inline_edit');
-        if (empty($postId = filter_input(INPUT_POST, 'post_ID', FILTER_VALIDATE_INT))) {
+        if (empty($postId = filter_input(\INPUT_POST, 'post_ID', \FILTER_VALIDATE_INT))) {
             wp_die();
         }
         if (!glsr()->can('respond_to_post', $postId)) {
@@ -274,16 +277,17 @@ class ListTableController extends AbstractController
             if ($user) {
                 $name = glsr(Sanitizer::class)->sanitizeUserName($user);
             }
+            /* translators: %s: user's name */
             $message = esc_html_x('Saving is disabled: %s is currently editing this review.', 'admin-text', 'site-reviews');
             printf($message, $name);
             wp_die();
         }
-        $response = (string) filter_input(INPUT_POST, '_response');
+        $response = (string) filter_input(\INPUT_POST, '_response');
         glsr(ReviewManager::class)->updateResponse($postId, compact('response'));
         $review = glsr_get_review($postId);
         glsr()->action('cache/flush', "review_{$review->ID}_responded", $review);
         global $mode;
-        $mode = Str::restrictTo(['excerpt', 'list'], (string) filter_input(INPUT_POST, 'post_view'), 'list');
+        $mode = Str::restrictTo(['excerpt', 'list'], (string) filter_input(\INPUT_POST, 'post_view'), 'list');
         $table = new ReviewsListTable(['screen' => convert_to_screen($screen)]);
         $table->display_rows([get_post($postId)], 0);
         wp_die();
@@ -335,7 +339,7 @@ class ListTableController extends AbstractController
             $query->set('meta_key', Str::prefix($orderby, '_'));
             $query->set('orderby', 'meta_value');
         }
-        if ($termId = filter_input(INPUT_GET, 'category', FILTER_SANITIZE_NUMBER_INT)) {
+        if ($termId = filter_input(\INPUT_GET, 'category', \FILTER_SANITIZE_NUMBER_INT)) {
             $taxQuery = ['taxonomy' => glsr()->taxonomy];
             if (-1 === Cast::toInt($termId)) {
                 $taxQuery['operator'] = 'NOT EXISTS';
@@ -349,7 +353,7 @@ class ListTableController extends AbstractController
     protected function filterByValues(): array
     {
         $filterBy = glsr(ColumnFilterbyDefaults::class)->defaults();
-        $filterBy = filter_input_array(INPUT_GET, $filterBy);
+        $filterBy = filter_input_array(\INPUT_GET, $filterBy);
         return Arr::removeEmptyValues(Arr::consolidate($filterBy));
     }
 

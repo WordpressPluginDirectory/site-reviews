@@ -2,12 +2,39 @@
 
 namespace GeminiLabs\SiteReviews\Controllers;
 
+use GeminiLabs\SiteReviews\Addons\UpdateNotice;
 use GeminiLabs\SiteReviews\Addons\Updater;
-use GeminiLabs\SiteReviews\Helpers\Arr;
 use GeminiLabs\SiteReviews\Helpers\Cast;
 
 class UpdateController extends AbstractController
 {
+    /**
+     * Say why an addon did not update when its update carried no package.
+     *
+     * @param mixed $email
+     *
+     * @return mixed
+     *
+     * @filter auto_plugin_theme_update_email
+     */
+    public function filterAutoUpdateEmail($email, string $type, array $successfulUpdates, array $failedUpdates)
+    {
+        if (!is_array($email) || !in_array($type, ['fail', 'mixed'], true)) {
+            return $email;
+        }
+        $lines = array_filter(array_map(
+            fn ($failed) => $this->licenseFailureLine($failed),
+            $failedUpdates['plugin'] ?? []
+        ));
+        if (empty($lines)) {
+            return $email;
+        }
+        $heading = _x('The following Site Reviews addons did not update because their license does not allow it:', 'admin-text', 'site-reviews');
+        $body = rtrim((string) ($email['body'] ?? ''));
+        $email['body'] = $body."\n\n".$heading."\n".implode("\n", $lines)."\n";
+        return $email;
+    }
+
     /**
      * Get the update information for the plugin modal.
      *
@@ -20,19 +47,14 @@ class UpdateController extends AbstractController
      */
     public function filterPluginsApi($data, string $action, $args)
     {
-        if ('plugin_information' !== $action) {
+        if ('plugin_information' !== $action || empty($args->slug)) {
             return $data;
         }
-        static $licensedAddons;
-        if (empty($licensedAddons)) {
-            $licensedAddons = glsr()->retrieveAs('array', 'licensed', []);
-        }
-        $addonId = Arr::getAs('string', $args, 'slug');
-        if (!array_key_exists($addonId, $licensedAddons)) {
+        if (!$this->isAddon($args->slug)) {
             return $data;
         }
-        $updater = new Updater($addonId, [
-            'force' => $this->hasTimeoutExpired($addonId),
+        $updater = new Updater($args->slug, [
+            'force' => $this->hasTimeoutExpired($args->slug),
         ]);
         $details = $updater->versionDetails();
         if (empty($details['version'])) {
@@ -133,9 +155,8 @@ class UpdateController extends AbstractController
         if (!empty($response->package)) {
             return;
         }
-        $url = $pluginData['PluginURI'] ?? Updater::DEFAULT_API_URL;
-        $message = _x('A valid <a href="%s">license key</a> is required to update this plugin.', 'admin-text', 'site-reviews');
-        printf(" {$message}", $url);
+        $notice = $this->updateNotice($response, (string) ($pluginData['PluginURI'] ?? ''));
+        echo ' '.$notice->html();
     }
 
     protected function hasTimeoutExpired(string $addonId): bool
@@ -145,18 +166,76 @@ class UpdateController extends AbstractController
         if (doing_filter('upgrader_process_complete')) {
             $timeout = 0;
         } elseif (doing_filter('load-update-core.php')) {
-            $timeout = filter_input(INPUT_GET, 'force-check', FILTER_VALIDATE_INT) ? 0 : MINUTE_IN_SECONDS;
+            $timeout = filter_input(\INPUT_GET, 'force-check', \FILTER_VALIDATE_INT) ? 0 : \MINUTE_IN_SECONDS;
         } elseif (doing_filter('load-plugins.php') || doing_filter('load-update.php')) {
-            $timeout = HOUR_IN_SECONDS;
+            $timeout = \HOUR_IN_SECONDS;
         } elseif (wp_doing_cron()) {
-            $timeout = 2 * HOUR_IN_SECONDS;
+            $timeout = 2 * \HOUR_IN_SECONDS;
         } else {
-            $timeout = 12 * HOUR_IN_SECONDS;
+            $timeout = 12 * \HOUR_IN_SECONDS;
         }
-        if ($timeout < (time() - $lastChecked)) {
+        if ($timeout <= (time() - $lastChecked)) {
             update_site_option($optionKey, time());
             return true;
         }
         return false;
+    }
+
+    protected function isAddon(string $slug): bool
+    {
+        static $cache = [];
+        if (isset($cache[$slug])) {
+            return $cache[$slug];
+        }
+        $cache[$slug] = false;
+        if (!preg_match('/^'.glsr()->id.'-[a-z-]+$/D', $slug)) {
+            return $cache[$slug];
+        }
+        $file = \WP_PLUGIN_DIR."/{$slug}/{$slug}.php";
+        if (is_readable($file)) {
+            $data = get_file_data($file, ['update_uri' => 'Update URI']);
+            $cache[$slug] = trailingslashit(Updater::DEFAULT_API_URL) === trailingslashit($data['update_uri']);
+        }
+        return $cache[$slug];
+    }
+
+    /**
+     * An update object the plugin built names the update server as its id:
+     * WordPress copies the Update URI header there, and the transient filter sets it.
+     */
+    protected function isAddonUpdate(object $update): bool
+    {
+        $id = (string) ($update->id ?? '');
+        return '' !== $id && trailingslashit($id) === trailingslashit(Updater::DEFAULT_API_URL);
+    }
+
+    /**
+     * The email line for a failed addon update that had no package; '' for any other failure.
+     *
+     * @param mixed $failed
+     */
+    protected function licenseFailureLine($failed): string
+    {
+        $item = $failed->item ?? null;
+        if (!is_object($item) || !empty($item->package) || !$this->isAddonUpdate($item)) {
+            return '';
+        }
+        $notice = $this->updateNotice($item);
+        $name = html_entity_decode((string) ($failed->name ?? $item->plugin));
+        return sprintf('- %s: %s %s', $name, $notice->text(), $notice->url());
+    }
+
+    /**
+     * The notice for an update object that has no package.
+     *
+     * @param mixed $update
+     */
+    protected function updateNotice($update, string $pluginUrl = ''): UpdateNotice
+    {
+        return new UpdateNotice(
+            (string) ($update->license_status ?? ''),
+            (string) ($update->license_renewal_url ?? ''),
+            $pluginUrl
+        );
     }
 }

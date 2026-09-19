@@ -50,7 +50,7 @@ class ReviewLimitsValidator extends ValidatorAbstract
         }
         if ($limitToDays > 0) {
             $args['date'] = [
-                'after' => wp_date('Y-m-d H:i:s', time() - (DAY_IN_SECONDS * $limitToDays)),
+                'after' => wp_date('Y-m-d H:i:s', time() - (\DAY_IN_SECONDS * $limitToDays)),
                 'inclusive' => true, // all reviews after and on this exact date
             ];
         }
@@ -94,9 +94,9 @@ class ReviewLimitsValidator extends ValidatorAbstract
         if ($this->isWhitelisted($value, glsr_get_option("forms.limit_whitelist.{$key}"))) {
             return true;
         }
-        add_filter('query/sql/clause/operator', [$this, 'filterSqlClauseOperator'], 20);
+        add_filter('site-reviews/query/sql/clause/operator', [$this, 'filterSqlClauseOperator'], 20);
         $reviews = glsr_get_reviews($this->normalizeArgs($args));
-        remove_filter('query/sql/clause/operator', [$this, 'filterSqlClauseOperator'], 20);
+        remove_filter('site-reviews/query/sql/clause/operator', [$this, 'filterSqlClauseOperator'], 20);
         $result = 0 === $reviews->total;
         return glsr()->filterBool('validate/review-limits', $result, $reviews, $this->request, $key);
     }

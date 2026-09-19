@@ -41,11 +41,11 @@ class Helper
         if (!empty($proxyHeader)) {
             $ipv4 = array_filter($trustedProxies, function ($range) {
                 [$ip] = explode('/', $range);
-                return !empty(filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4));
+                return !empty(filter_var($ip, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4));
             });
             $ipv6 = array_filter($trustedProxies, function ($range) {
                 [$ip] = explode('/', $range);
-                return !empty(filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6));
+                return !empty(filter_var($ip, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6));
             });
             $whitelist[$proxyHeader] = [
                 Whip::IPV4 => $ipv4,
@@ -73,7 +73,7 @@ class Helper
     {
         $version1 = implode('.', array_pad(explode('.', $version1), 3, 0));
         $version2 = implode('.', array_pad(explode('.', $version2), 3, 0));
-        return version_compare($version1, $version2, $operator ?: '=');
+        return (bool) version_compare($version1, $version2, $operator ?: '=');
     }
 
     /**
@@ -81,19 +81,12 @@ class Helper
      */
     public static function filterInput(string $key, array $request = [])
     {
-        if (isset($request[$key])) {
-            return $request[$key];
-        }
-        $variable = filter_input(INPUT_POST, $key);
-        if (is_null($variable) && isset($_POST[$key])) {
-            $variable = $_POST[$key];
-        }
-        return $variable;
+        return $request[$key] ?? static::input(\INPUT_POST, $key);
     }
 
     public static function filterInputArray(string $key): array
     {
-        $variable = filter_input(INPUT_POST, $key, FILTER_DEFAULT, FILTER_REQUIRE_ARRAY);
+        $variable = filter_input(\INPUT_POST, $key, \FILTER_DEFAULT, \FILTER_REQUIRE_ARRAY);
         if (empty($variable) && !empty($_POST[$key]) && is_array($_POST[$key])) {
             $variable = $_POST[$key];
         }
@@ -104,8 +97,8 @@ class Helper
     {
         $pagedQueryVar = glsr()->constant('PAGED_QUERY_VAR');
         $pageNum = empty($fromUrl)
-            ? filter_input(INPUT_GET, $pagedQueryVar, FILTER_VALIDATE_INT)
-            : filter_var(Url::query($fromUrl, $pagedQueryVar), FILTER_VALIDATE_INT);
+            ? filter_input(\INPUT_GET, $pagedQueryVar, \FILTER_VALIDATE_INT)
+            : filter_var(Url::query($fromUrl, $pagedQueryVar), \FILTER_VALIDATE_INT);
         if (empty($pageNum)) {
             $pageNum = (int) $fallback;
         }
@@ -223,13 +216,44 @@ class Helper
     }
 
     /**
+     * Retrieves and filters a value from a PHP input source.
+     *
+     * Reads from the original SAPI request data via filter_input(). If the key
+     * is missing there or fails filtering, falls back to the corresponding
+     * superglobal (which may have been mutated at runtime) and applies the same
+     * filter to it. Returns null when the value is absent or fails filtering in
+     * both sources.
+     *
+     * @return mixed the filtered value, or null if absent or invalid in both sources
+     *
+     * @throws \UnhandledMatchError if $type is not a supported INPUT_* constant
+     */
+    public static function input(int $type, string $key, int $filter = \FILTER_DEFAULT)
+    {
+        $fallback = match ($type) {
+            \INPUT_GET => $_GET,
+            \INPUT_POST => $_POST,
+            \INPUT_COOKIE => $_COOKIE,
+            \INPUT_SERVER => $_SERVER,
+            \INPUT_ENV => $_ENV,
+        };
+        $value = filter_input($type, $key, $filter, \FILTER_NULL_ON_FAILURE);
+        if (false === $value) {
+            $value = isset($fallback[$key])
+                ? filter_var($fallback[$key], $filter, \FILTER_NULL_ON_FAILURE)
+                : null;
+        }
+        return $value;
+    }
+
+    /**
      * @param mixed      $value
      * @param string|int $min
      * @param string|int $max
      */
     public static function inRange($value, $min, $max): bool
     {
-        $inRange = filter_var($value, FILTER_VALIDATE_INT, ['options' => [
+        $inRange = filter_var($value, \FILTER_VALIDATE_INT, ['options' => [
             'min_range' => intval($min),
             'max_range' => intval($max),
         ]]);
@@ -285,7 +309,7 @@ class Helper
 
     public static function isLocalIpAddress(string $ipAddress): bool
     {
-        if (false !== filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6)) {
+        if (false !== filter_var($ipAddress, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4 | \FILTER_FLAG_IPV6)) {
             return in_array($ipAddress, ['127.0.0.1', '::1']);
         }
         return true;
@@ -293,8 +317,10 @@ class Helper
 
     public static function isLocalServer(): bool
     {
-        $host = static::ifEmpty(filter_input(INPUT_SERVER, 'HTTP_HOST'), 'localhost');
-        $ipAddress = static::ifEmpty(filter_input(INPUT_SERVER, 'SERVER_ADDR'), '::1');
+        // input() falls back to $_SERVER for the FastCGI SAPIs that never
+        // populate the request table filter_input() reads (PHP #49184).
+        $host = static::ifEmpty(static::input(\INPUT_SERVER, 'HTTP_HOST'), 'localhost');
+        $ipAddress = static::ifEmpty(static::input(\INPUT_SERVER, 'SERVER_ADDR'), '::1');
         $result = false;
         if (static::isLocalIpAddress($ipAddress)
             || !mb_strpos($host, '.')
@@ -342,7 +368,7 @@ class Helper
     public static function serverIp(): string
     {
         $response = glsr(Api::class, ['url' => 'https://ipecho.net'])->get('plain', [
-            'expiration' => WEEK_IN_SECONDS,
+            'expiration' => \WEEK_IN_SECONDS,
         ]);
         if ($response->successful()) {
             return filter_var($response->response->get_data(), \FILTER_VALIDATE_IP);

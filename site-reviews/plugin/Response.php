@@ -35,7 +35,7 @@ class Response
         }
         $responseBody = wp_remote_retrieve_body($request);
         $body = json_decode($responseBody, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if (json_last_error() !== \JSON_ERROR_NONE) {
             $body = [
                 'result' => $responseBody,
             ];
@@ -53,13 +53,12 @@ class Response
 
     public function body(): array
     {
-        return array_map('maybe_unserialize', $this->body);
+        return $this->unserialized($this->body);
     }
 
     public function data(): array
     {
-        $data = Arr::getAs('array', $this->body, 'data');
-        return array_map('maybe_unserialize', $data);
+        return $this->unserialized(Arr::getAs('array', $this->body, 'data'));
     }
 
     public function failed(): bool
@@ -78,5 +77,19 @@ class Response
         return false === $this->error
             && $this->code >= 200
             && $this->code <= 299;
+    }
+
+    /**
+     * Some APIs send values as serialized PHP. The bytes arrive over the network, so
+     * they must never restore an object: unserialize() runs its magic methods first.
+     */
+    protected function unserialized(array $values): array
+    {
+        return array_map(function ($value) {
+            if (!is_serialized($value)) {
+                return $value;
+            }
+            return @unserialize(trim($value), ['allowed_classes' => false]);
+        }, $values);
     }
 }

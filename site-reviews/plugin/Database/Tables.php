@@ -72,6 +72,9 @@ class Tables
 
     public function createTables(): void
     {
+        foreach ($this->tables as $tablename) {
+            delete_option(sprintf('%sengine_%s', glsr()->prefix, $tablename));
+        }
         array_map(fn ($table) => glsr($table)->create(), $this->tables());
     }
 
@@ -138,7 +141,7 @@ class Tables
 
     public function tableEngine(string $table): string
     {
-        if (defined('GLSR_UNIT_TESTS') || $this->isSqlite()) {
+        if ($this->isSqlite()) {
             return '';
         }
         $table = $this->table($table);

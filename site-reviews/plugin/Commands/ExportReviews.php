@@ -42,12 +42,11 @@ class ExportReviews extends AbstractCommand
             }
             nocache_headers();
             $filename = sprintf('%s_%s.csv', date('YmdHi'), glsr()->id);
-            $writer = Writer::createFromString('');
-            $writer->addFormatter(new EscapeFormula());
+            $writer = $this->writer();
             $writer->insertOne(array_keys($firstRecord));
             $writer->insertAll($records);
-            $writer->output($filename);
-            exit;
+            $writer->download($filename);
+            glsr_exit();
         } catch (CannotInsertRecord $e) {
             $this->fail();
             glsr(Notice::class)->addError($e->getMessage());
@@ -114,7 +113,7 @@ class ExportReviews extends AbstractCommand
         $meta = array_map(fn ($val) => $val[0] ?? '', $meta);
         $meta = array_filter($meta, function ($key) use ($additionalKeys) {
             return str_starts_with($key, '_custom_') || in_array($key, $additionalKeys);
-        }, ARRAY_FILTER_USE_KEY);
+        }, \ARRAY_FILTER_USE_KEY);
         $results = [];
         foreach ($meta as $key => $value) {
             $key = Str::removePrefix($key, '_');
@@ -132,5 +131,12 @@ class ExportReviews extends AbstractCommand
             }
         }
         return $results;
+    }
+
+    protected function writer(): Writer
+    {
+        $writer = Writer::fromString('');
+        $writer->addFormatter((new EscapeFormula())->escapeRecord(...));
+        return $writer;
     }
 }

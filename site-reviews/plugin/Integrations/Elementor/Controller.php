@@ -56,7 +56,7 @@ class Controller extends AbstractController
      */
     public function filterStarRatingDefaults(array $defaults): array
     {
-        if ('elementor' === filter_input(INPUT_GET, 'action')) {
+        if ('elementor' === filter_input(\INPUT_GET, 'action')) {
             $defaults['prefix'] = 'glsr-';
         }
         return $defaults;
@@ -73,10 +73,14 @@ class Controller extends AbstractController
             return;
         }
         $settings = $widget->get_settings_for_display();
-        $hasColor = !empty($settings['style_rating_color']) || !empty($settings['__globals__']['style_rating_color']);
-        $hasTheme = !empty($settings['theme']);
-        if ($hasColor && !$hasTheme) {
-            $widget->add_render_attribute('_wrapper', 'class', 'has-custom-color');
+        $hasBarColor = !empty($settings['style_bar_color']) || !empty($settings['__globals__']['style_bar_color']);
+        if ($hasBarColor) {
+            $widget->add_render_attribute('_wrapper', 'class', 'has-bar-color');
+        }
+        $hasRatingColor = !empty($settings['style_rating_color']) || !empty($settings['__globals__']['style_rating_color']);
+        $hasTheme = !empty($settings['theme']); // @todo move this "theme" check to Review Themes addon
+        if ($hasRatingColor && !$hasTheme) {
+            $widget->add_render_attribute('_wrapper', 'class', 'has-rating-color');
         }
     }
 

@@ -67,7 +67,17 @@ return [ // order is intentional
         'rows' => 3,
         'sanitizer' => 'text-html',
         'tags' => glsr('Modules\Html\TemplateTags')->filteredTags([
-            'exclude' => ['admin_email', 'approve_url', 'edit_url', 'review_link', 'review_type', 'verified_date'],
+            'exclude' => [
+                'admin_email',
+                'approve_url',
+                'edit_url',
+                'review_id',
+                'review_ip',
+                'review_link',
+                'review_response',
+                'review_type',
+                'verified_date',
+            ],
         ]),
         'tooltip' => _x('The verification email sent to the reviewer when a review is submitted.', 'admin-text', 'site-reviews'),
         'type' => 'code',
@@ -178,7 +188,7 @@ return [ // order is intentional
             'settings.general.notifications' => ['discord'],
         ],
         'label' => _x('Discord Webhook URL', 'admin-text', 'site-reviews'),
-        'sanitizer' => 'url',
+        'sanitizer' => 'url:discord.com',
         /* translators: %s is replaced with a link to the "create a webhook" Discord support URL */
         'tooltip' => sprintf(_x('To send notifications to a Discord channel, %s and then paste the URL in the field.', 'admin-text', 'site-reviews'),
             '<a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank">'._x('create a webhook', 'admin-text', 'site-reviews').'</a>'
@@ -192,7 +202,7 @@ return [ // order is intentional
             'settings.general.notifications' => ['slack'],
         ],
         'label' => _x('Slack Webhook URL', 'admin-text', 'site-reviews'),
-        'sanitizer' => 'url',
+        'sanitizer' => 'url:hooks.slack.com',
         /* translators: %s is replaced with a link to the "create an Incoming Webhook" Slack support URL */
         'tooltip' => sprintf(_x('To send notifications to a Slack channel, %s and then paste the URL in the field.', 'admin-text', 'site-reviews'),
             '<a href="https://api.slack.com/incoming-webhooks" target="_blank">'._x('create an Incoming Webhook', 'admin-text', 'site-reviews').'</a>'
@@ -232,7 +242,14 @@ return [ // order is intentional
         'rows' => 3,
         'sanitizer' => 'text-html',
         'tags' => glsr('Modules\Html\TemplateTags')->filteredTags([
-            'exclude' => ['admin_email', 'review_link', 'review_type', 'verified_date', 'verify_url'],
+            'exclude' => [
+                'admin_email',
+                'review_link',
+                'review_response',
+                'review_type',
+                'verified_date',
+                'verify_url',
+            ],
         ]),
         'tooltip' => _x('If you are sending notifications to Slack then this template will only be used as a fallback in the event that <a href="https://api.slack.com/docs/attachments" target="_blank">Message Attachments</a> have been disabled.', 'admin-text', 'site-reviews'),
         'type' => 'code',
@@ -416,11 +433,13 @@ return [ // order is intentional
     ],
     'settings.reviews.fallback' => [
         'default' => 'yes',
+        /* translators: %s: the default fallback text */
         'description' => sprintf(_x('The default text is: %s', 'admin-text', 'site-reviews'),
             '<code>'.__('There are no reviews yet. Be the first one to write one.', 'site-reviews').'</code>'
         ),
         'label' => _x('Enable Fallback Text', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
+        /* translators: %s: link to the Strings settings page */
         'tooltip' => sprintf(_x('Display the fallback text when there are no reviews to display. This can be changed on the %s page. You may also override this by using the "fallback" option on the shortcode.', 'admin-text', 'site-reviews'),
             glsr_admin_link('settings.strings', _x('Strings', 'admin-text', 'site-reviews'))
         ),
@@ -439,6 +458,7 @@ return [ // order is intentional
         'depends_on' => [
             'settings.reviews.geolocation' => 'yes',
         ],
+        /* translators: %s: link to the Geolocate Reviews tool */
         'description' => sprintf(_x('Use the %s tool to extract geolocation from existing reviews.', 'admin-text', 'site-reviews'),
             glsr_admin_link('tools.general', _x('Geolocate Reviews', 'admin-text', 'site-reviews'), '#tools-geolocate-reviews')
         ),
@@ -457,7 +477,8 @@ return [ // order is intentional
     'settings.reviews.pagination.url_parameter' => [
         'default' => 'yes',
         'description' => sprintf(
-            _x('If you would like to keep the pagination links but prevent search engines from indexing them, add the following lines to your %s file: %s', 'admin-text', 'site-reviews'),
+            /* translators: %1$s: link to the robots.txt website, %2$s: the robots.txt rules to add */
+            _x('If you would like to keep the pagination links but prevent search engines from indexing them, add the following lines to your %1$s file: %2$s', 'admin-text', 'site-reviews'),
             '<a href="https://www.robotstxt.org/" target="_blank">robots.txt</a>',
             '<br><code>user-agent: *</code>'.
             '<br><code>Disallow: /*?'.glsr()->constant('PAGED_QUERY_VAR').'=*</code>'.
@@ -465,6 +486,7 @@ return [ // order is intentional
         ),
         'label' => esc_html_x('Enable Paginated URLs', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
+        /* translators: %s: the pagination URL parameter */
         'tooltip' => sprintf(_x('Paginated URLs include the %s URL parameter.', 'admin-text', 'site-reviews'),
             '<code>?'.glsr()->constant('PAGED_QUERY_VAR').'={page_number}</code>'
         ),
@@ -499,6 +521,7 @@ return [ // order is intentional
             'custom' => _x('Custom', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
+        /* translators: %s: link to the Custom Fields metabox documentation */
         'tooltip' => sprintf(_x('You can use the %s to override this value on your page. The Custom Field name to use is:', 'admin-text', 'site-reviews').' <code>schema_type</code>',
             sprintf('<a href="https://wordpress.org/support/article/custom-fields/" target="_blank">%s</a>', _x('Custom Fields metabox', 'admin-text', 'site-reviews'))
         ),
@@ -512,7 +535,8 @@ return [ // order is intentional
         ],
         'label' => _x('Custom Schema Type', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
-        'tooltip' => sprintf(_x('Google limits the schema types that can trigger review rich results in search. To learn more, please %sread this%s.', 'admin-text', 'site-reviews'),
+        /* translators: %1$s: opening link tag, %2$s: closing link tag */
+        'tooltip' => sprintf(_x('Google limits the schema types that can trigger review rich results in search. To learn more, please %1$sread this%2$s.', 'admin-text', 'site-reviews'),
             '<a href="https://developers.google.com/search/blog/2019/09/making-review-rich-results-more-helpful" target="_blank">',
             '</a>'
         ),
@@ -526,7 +550,7 @@ return [ // order is intentional
         ],
         'label' => _x('Default Name', 'admin-text', 'site-reviews'),
         'options' => [
-            'post' => _x('Use the assigned or current page title', 'admin-text', 'site-reviews'),
+            'post' => _x('Use the current page title', 'admin-text', 'site-reviews'),
             'custom' => _x('Enter a custom title', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
@@ -554,7 +578,7 @@ return [ // order is intentional
         ],
         'label' => _x('Default Description', 'admin-text', 'site-reviews'),
         'options' => [
-            'post' => _x('Use the assigned or current page excerpt', 'admin-text', 'site-reviews'),
+            'post' => _x('Use the current page excerpt', 'admin-text', 'site-reviews'),
             'custom' => _x('Enter a custom description', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
@@ -582,7 +606,7 @@ return [ // order is intentional
         ],
         'label' => _x('Default URL', 'admin-text', 'site-reviews'),
         'options' => [
-            'post' => _x('Use the assigned or current page URL', 'admin-text', 'site-reviews'),
+            'post' => _x('Use the current page URL', 'admin-text', 'site-reviews'),
             'custom' => _x('Enter a custom URL', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
@@ -610,7 +634,7 @@ return [ // order is intentional
         ],
         'label' => _x('Default Image', 'admin-text', 'site-reviews'),
         'options' => [
-            'post' => _x('Use the featured image of the assigned or current page', 'admin-text', 'site-reviews'),
+            'post' => _x('Use the featured image of the current page', 'admin-text', 'site-reviews'),
             'custom' => _x('Enter a custom image URL', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
@@ -864,7 +888,8 @@ return [ // order is intentional
         'options' => [ // order is intentional
             '' => _x('Do not use', 'admin-text', 'site-reviews'),
             'turnstile' => _x('Use Cloudflare Turnstile', 'admin-text', 'site-reviews'),
-            'friendlycaptcha' => _x('Use Friendly Captcha', 'admin-text', 'site-reviews'),
+            'friendlycaptcha' => _x('Use Friendly Captcha v1', 'admin-text', 'site-reviews'),
+            'friendlycaptcha_v2' => _x('Use Friendly Captcha v2', 'admin-text', 'site-reviews'),
             'hcaptcha' => _x('Use hCaptcha', 'admin-text', 'site-reviews'),
             'procaptcha' => _x('Use Prosopo Procaptcha', 'admin-text', 'site-reviews'),
             'recaptcha_v2_invisible' => _x('Use reCAPTCHA v2 Invisible', 'admin-text', 'site-reviews'),
@@ -877,7 +902,10 @@ return [ // order is intentional
     'settings.forms.friendlycaptcha.key' => [
         'default' => '',
         'depends_on' => [
-            'settings.forms.captcha.integration' => ['friendlycaptcha'],
+            'settings.forms.captcha.integration' => [
+                'friendlycaptcha',
+                'friendlycaptcha_v2',
+            ],
         ],
         'label' => _x('Site Key', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
@@ -887,7 +915,10 @@ return [ // order is intentional
     'settings.forms.friendlycaptcha.secret' => [
         'default' => '',
         'depends_on' => [
-            'settings.forms.captcha.integration' => ['friendlycaptcha'],
+            'settings.forms.captcha.integration' => [
+                'friendlycaptcha',
+                'friendlycaptcha_v2',
+            ],
         ],
         'label' => _x('API Key', 'admin-text', 'site-reviews'),
         'sanitizer' => 'text',
@@ -943,11 +974,11 @@ return [ // order is intentional
         'label' => _x('CAPTCHA Type', 'admin-text', 'site-reviews'),
         'options' => [
             'frictionless' => _x('Frictionless (invisible to the user)', 'admin-text', 'site-reviews'),
-            'image' => _x('Image (solve a simple image CAPTCHA)', 'admin-text', 'site-reviews'),
-            'pow' => _x('Proof of Work (solve a cryptographic puzzle)', 'admin-text', 'site-reviews'),
+            'image' => _x('Image Captcha (identify objects in images)', 'admin-text', 'site-reviews'),
+            'pow' => _x('Proof of Work (perform computational tasks)', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
-        'tooltip' => _x('The type of CAPTCHA to render.', 'admin-text', 'site-reviews'),
+        'tooltip' => _x('This should match the CAPTCHA Type in your portal settings.', 'admin-text', 'site-reviews'),
         'type' => 'select',
     ],
     'settings.forms.recaptcha.key' => [
@@ -1047,6 +1078,7 @@ return [ // order is intentional
         'depends_on' => [
             'settings.forms.captcha.integration' => [
                 'friendlycaptcha',
+                'friendlycaptcha_v2',
                 'hcaptcha',
                 'procaptcha',
                 'turnstile',
@@ -1067,6 +1099,7 @@ return [ // order is intentional
         'depends_on' => [
             'settings.forms.captcha.integration' => [
                 'friendlycaptcha',
+                'friendlycaptcha_v2',
                 'hcaptcha',
                 'procaptcha',
                 'recaptcha_v2_invisible',
@@ -1089,6 +1122,7 @@ return [ // order is intentional
         'depends_on' => [
             'settings.forms.captcha.integration' => [
                 'friendlycaptcha',
+                'friendlycaptcha_v2',
                 'hcaptcha',
                 'procaptcha',
                 'recaptcha_v2_invisible',
@@ -1129,6 +1163,7 @@ return [ // order is intentional
             'comments' => _x('Use the WordPress Disallowed Comment Keys', 'admin-text', 'site-reviews'),
         ],
         'sanitizer' => 'text',
+        /* translators: %s: link to the Disallowed Comment Keys setting */
         'tooltip' => sprintf(_x('Choose which Blacklist you would prefer to use for reviews. The %s option can be found in the WordPress Discussion Settings page.', 'admin-text', 'site-reviews'),
             '<a href="'.admin_url('options-discussion.php').'">'._x('Disallowed Comment Keys', 'admin-text', 'site-reviews').'</a>'
         ),
